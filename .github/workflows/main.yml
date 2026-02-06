@@ -1,0 +1,26 @@
+name: Ejecucion Diaria Steam ETL
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Corre diario a la medianoche UTC
+  workflow_dispatch:   # Esto activa un botón para que lo corras manual cuando quieras
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar codigo del repositorio
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Instalar librerias necesarias
+        run: pip install -r requirements.txt
+
+      - name: Ejecutar script de Steam
+        env:
+          DB_URI: ${{ secrets.DB_URI }} # Aqui GitHub usa la contraseña que guardaste
+        run: python steam_etl.py
