@@ -1,24 +1,24 @@
-Nombre: Ejecución Diaria Steam ETL
+name: Ejecución Diaria Steam ETL
 
-en:
-  workflow_dispatch: # Botón manual
+on:
+  workflow_dispatch: # Botón manual para pruebas
 
-Empleos:
-  Construir:
-    Continuando: ubuntu-latest
-    Escalones:
-      - Nombre: Descargar código del repositorio
-        Usos: Acciones/checkout@v3
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - Nombre: Construir la "Maleta" (Imagen Docker)
-        corre: docker build -t steam-image .
+      - name: Build Docker Image
+        run: docker build -t steam-image .
 
-      - Nombre: Abrir la maleta y ejecutar (Contenedor)
+      - name: Run Docker Container
         env:
-          # Aquí mapeamos los secretos de GitHub a variables que el script entienda
+          # Mapeo de secretos de GitHub a variables de entorno
           DB_URI: ${{ secrets.DB_URI }}
           DB_URI_BACKUP: ${{ secrets.DB_URI_BACKUP }}
-        corre: |
+        run: |
           docker run --name steam-app \
           -e DB_URI=$DB_URI \
           -e DB_URI_BACKUP=$DB_URI_BACKUP \
