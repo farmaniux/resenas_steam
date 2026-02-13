@@ -2,3 +2,7 @@ pandas
 sqlalchemy
 psycopg2-binary
 requests
+pymysql
+cryptography
+scikit-learn
+numpy
