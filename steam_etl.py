@@ -12,7 +12,7 @@ DB_URI_SINGLESTORE = os.getenv('DB_URI_BACKUP')
 juegos_ids = [440, 550, 730, 218230, 252490, 578080, 1085660, 1172470, 1240440, 1938090]
 
 def preparar_supabase(engine):
-    """Maneja la limpieza y dimensiones en PostgreSQL"""
+    """Maneja la limpieza y dimensiones en PostgreSQL (Idempotencia)"""
     hoy = datetime.now().date()
     with engine.connect() as conn:
         conn.execute(text("""
@@ -30,7 +30,6 @@ def extraer_datos(appid):
         r = requests.get(url, timeout=10)
         data = r.json()
         stats = data['query_summary']
-        
         total_reviews = stats['total_reviews']
         ventas = total_reviews * random.randint(30, 50)
         
@@ -55,8 +54,7 @@ if __name__ == "__main__":
         # Inicialización de motores
         engine_sp = create_engine(DB_URI_SUPABASE)
         
-        # --- AJUSTE PARA SINGLESTORE CON SSL ---
-        # Añadimos connect_args para que pymysql use SSL obligatorio
+        # --- AJUSTE PARA SINGLESTORE CON SSL (ETAPA 5: IMPLEMENTACIÓN) ---
         engine_ss = create_engine(
             DB_URI_SINGLESTORE,
             connect_args={"ssl": {"fake_flag": True}}
