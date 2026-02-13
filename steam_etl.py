@@ -6,7 +6,6 @@ import os
 import random
 
 # 1. Configuración de conexiones (Capa de Integración)
-# Secrets de GitHub: DB_URI (Supabase) y DB_URI_BACKUP (SingleStore)
 DB_URI_SUPABASE = os.getenv('DB_URI')
 DB_URI_SINGLESTORE = os.getenv('DB_URI_BACKUP')
 
@@ -16,13 +15,11 @@ def preparar_supabase(engine):
     """Maneja la limpieza y dimensiones en PostgreSQL"""
     hoy = datetime.now().date()
     with engine.connect() as conn:
-        # Asegurar dimensión tiempo (Sintaxis Postgres)
         conn.execute(text("""
             INSERT INTO dim_tiempo (id_tiempo, mes, trimestre, anio)
             VALUES (:d, :m, :t, :a) ON CONFLICT (id_tiempo) DO NOTHING
         """), {"d": hoy, "m": hoy.month, "t": (hoy.month - 1) // 3 + 1, "a": hoy.year})
         
-        # Limpieza preventiva para evitar duplicados
         conn.execute(text("DELETE FROM hechos_resenas_steam WHERE fk_tiempo = :d"), {"d": hoy})
         conn.commit()
 
@@ -35,7 +32,6 @@ def extraer_datos(appid):
         stats = data['query_summary']
         
         total_reviews = stats['total_reviews']
-        # Algoritmo de Boxleiter para estimación de mercado
         ventas = total_reviews * random.randint(30, 50)
         
         return {
@@ -59,9 +55,10 @@ if __name__ == "__main__":
         # Inicialización de motores
         engine_sp = create_engine(DB_URI_SUPABASE)
         
-        # --- CAMBIO REALIZADO AQUÍ PARA SSL ---
+        # --- AJUSTE PARA SINGLESTORE CON SSL ---
+        # Añadimos connect_args para que pymysql use SSL obligatorio
         engine_ss = create_engine(
-            DB_URI_SINGLESTORE, 
+            DB_URI_SINGLESTORE,
             connect_args={"ssl": {"fake_flag": True}}
         )
 
@@ -73,12 +70,11 @@ if __name__ == "__main__":
         df = pd.DataFrame([d for d in datos if d is not None])
 
         if not df.empty:
-            # CARGA DUAL
             print("3. Cargando en Supabase (PostgreSQL)...")
             df.to_sql('hechos_resenas_steam', engine_sp, if_exists='append', index=False)
             
             print("4. Cargando en SingleStore (Data Warehouse)...")
-            # En SingleStore no limpiamos por fecha aquí para mantener el historial analítico completo
+            # Con el motor configurado con SSL, esto ya no debería dar error 1251
             df.to_sql('hechos_resenas_steam', engine_ss, if_exists='append', index=False)
             
             print(f"¡Éxito! {len(df)} registros sincronizados en ambas bases de datos.")
