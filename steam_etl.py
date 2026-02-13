@@ -58,7 +58,12 @@ if __name__ == "__main__":
     else:
         # Inicialización de motores
         engine_sp = create_engine(DB_URI_SUPABASE)
-        engine_ss = create_engine(DB_URI_SINGLESTORE)
+        
+        # --- CAMBIO REALIZADO AQUÍ PARA SSL ---
+        engine_ss = create_engine(
+            DB_URI_SINGLESTORE, 
+            connect_args={"ssl": {"fake_flag": True}}
+        )
 
         print("1. Preparando Capa Transaccional (Supabase)...")
         preparar_supabase(engine_sp)
