@@ -1,26 +1,24 @@
-name: Ejecucion Diaria Steam ETL
+name: Steam ETL con Docker
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Corre diario a la medianoche UTC
-  workflow_dispatch:   # Esto activa un botón para que lo corras manual cuando quieras
+    - cron: '0 0 * * *' # Se ejecuta diario a medianoche
+  workflow_dispatch:   # Botón para ejecutar manual
 
 jobs:
-  build:
+  run-docker-etl:
     runs-on: ubuntu-latest
     steps:
-      - name: Descargar codigo del repositorio
+      - name: Clonar el código del repo
         uses: actions/checkout@v3
 
-      - name: Configurar Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+      - name: Construir la "Maleta" (Imagen Docker)
+        run: docker build -t steam-image .
 
-      - name: Instalar librerias necesarias
-        run: pip install -r requirements.txt
-
-      - name: Ejecutar script de Steam
+      - name: Abrir la maleta y ejecutar (Contenedor)
         env:
-          DB_URI: ${{ secrets.DB_URI }} # Aqui GitHub usa la contraseña que guardaste
-        run: python steam_etl.py
+          DB_URI: ${{ secrets.DB_URI }}
+        run: |
+          docker run --name steam-app \
+          -e DB_URI=$DB_URI \
+          steam-image
