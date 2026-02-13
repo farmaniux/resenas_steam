@@ -56,9 +56,9 @@ if __name__ == "__main__":
         
         # --- AJUSTE PARA SINGLESTORE CON SSL (ETAPA 5: IMPLEMENTACIÓN) ---
         engine_ss = create_engine(
-            DB_URI_SINGLESTORE,
-            connect_args={"ssl": {"fake_flag": True}}
-        )
+    DB_URI_SINGLESTORE, 
+    connect_args={"ssl": {"fake_flag": True}} 
+)
 
         print("1. Preparando Capa Transaccional (Supabase)...")
         preparar_supabase(engine_sp)
@@ -78,3 +78,4 @@ if __name__ == "__main__":
             print(f"¡Éxito! {len(df)} registros sincronizados en ambas bases de datos.")
         else:
             print("No se obtuvieron datos de la API.")
+
