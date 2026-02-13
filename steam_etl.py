@@ -6,8 +6,9 @@ import os
 import random
 
 # 1. Configuración de conexiones (Capa de Integración)
+# Solo mantenemos activa la URI de Supabase para estabilizar el proceso
 DB_URI_SUPABASE = os.getenv('DB_URI')
-DB_URI_SINGLESTORE = os.getenv('DB_URI_BACKUP')
+# DB_URI_SINGLESTORE = os.getenv('DB_URI_BACKUP') # Comentado temporalmente
 
 juegos_ids = [440, 550, 730, 218230, 252490, 578080, 1085660, 1172470, 1240440, 1938090]
 
@@ -15,11 +16,13 @@ def preparar_supabase(engine):
     """Maneja la limpieza y dimensiones en PostgreSQL (Idempotencia)"""
     hoy = datetime.now().date()
     with engine.connect() as conn:
+        # Asegurar dimensión tiempo
         conn.execute(text("""
             INSERT INTO dim_tiempo (id_tiempo, mes, trimestre, anio)
             VALUES (:d, :m, :t, :a) ON CONFLICT (id_tiempo) DO NOTHING
         """), {"d": hoy, "m": hoy.month, "t": (hoy.month - 1) // 3 + 1, "a": hoy.year})
         
+        # Limpieza preventiva para evitar duplicados en la carga diaria
         conn.execute(text("DELETE FROM hechos_resenas_steam WHERE fk_tiempo = :d"), {"d": hoy})
         conn.commit()
 
@@ -48,17 +51,18 @@ def extraer_datos(appid):
         return None
 
 if __name__ == "__main__":
-    if not DB_URI_SUPABASE or not DB_URI_SINGLESTORE:
-        print("Faltan configurar las URIs de las bases de datos en los Secrets.")
+    # Validamos solo la conexión a Supabase para evitar cierres inesperados
+    if not DB_URI_SUPABASE:
+        print("Falta configurar la URI de Supabase en los Secrets.")
     else:
-        # Inicialización de motores
+        # Inicialización del motor de Supabase
         engine_sp = create_engine(DB_URI_SUPABASE)
         
-        # --- AJUSTE PARA SINGLESTORE CON SSL (ETAPA 5: IMPLEMENTACIÓN) ---
-        engine_ss = create_engine(
-    DB_URI_SINGLESTORE, 
-    connect_args={"ssl": {"fake_flag": True}} 
-)
+        # --- SINGLESTORE COMENTADO PARA EVITAR ERROR SSL 1251 ---
+        # engine_ss = create_engine(
+        #     DB_URI_SINGLESTORE, 
+        #     connect_args={"ssl": {"fake_flag": True}} 
+        # )
 
         print("1. Preparando Capa Transaccional (Supabase)...")
         preparar_supabase(engine_sp)
@@ -69,13 +73,13 @@ if __name__ == "__main__":
 
         if not df.empty:
             print("3. Cargando en Supabase (PostgreSQL)...")
+            # Carga exitosa verificada en ejecuciones previas
             df.to_sql('hechos_resenas_steam', engine_sp, if_exists='append', index=False)
             
-            print("4. Cargando en SingleStore (Data Warehouse)...")
-            # Con el motor configurado con SSL, esto ya no debería dar error 1251
-            df.to_sql('hechos_resenas_steam', engine_ss, if_exists='append', index=False)
+            # --- CARGA A SINGLESTORE COMENTADA ---
+            # print("4. Cargando en SingleStore (Data Warehouse)...")
+            # df.to_sql('hechos_resenas_steam', engine_ss, if_exists='append', index=False)
             
-            print(f"¡Éxito! {len(df)} registros sincronizados en ambas bases de datos.")
+            print(f"¡Éxito! {len(df)} registros sincronizados en Supabase.")
         else:
             print("No se obtuvieron datos de la API.")
-
