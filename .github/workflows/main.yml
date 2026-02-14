@@ -2,8 +2,7 @@ name: Ejecución Diaria Steam ETL
 on:
   workflow_dispatch: # Botón manual para pruebas
   schedule:
-    - cron: '20 6 * * *'  # 12:20 AM hora de México (Tizimín, Yucatán)
-
+    - cron: '38 7 * * *'  # 1:38 AM hora de México (PRUEBA)
 jobs:
   build:
     runs-on: ubuntu-latest
