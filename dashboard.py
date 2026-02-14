@@ -5,28 +5,30 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 import plotly.express as px
 
-# 1. Configuración de la página
+# 1. Configuración de página
 st.set_page_config(page_title="Steam-BI Analytics", layout="wide")
 st.title("🎮 Steam-BI: Predicción y Análisis de Mercado")
 
-# 2. Conexión a la Base de Datos (VERSIÓN CORREGIDA PARA SUPABASE)
+# 2. Conexión a Base de Datos (Configuración exacta para Supabase Transaction Pooler)
 def get_connection():
     try:
         db_url = st.secrets["DB_URI"]
         
-        # Aseguramos el driver correcto
+        # Ajuste de protocolo para SQLAlchemy
         if db_url.startswith("postgres://"):
             db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
             
-        # CONFIGURACIÓN CRÍTICA:
-        # options="-c client_encoding=utf8" es lo que arregla tu error actual.
+        # CONFIGURACIÓN CRÍTICA
         engine = create_engine(db_url, 
             connect_args={
                 "sslmode": "require",
-                "prepare_threshold": None,
+                # ESTO SOLUCIONA EL "DOES NOT SUPPORT PREPARE STATEMENTS"
+                "prepare_threshold": None, 
+                # ESTO SOLUCIONA EL "SERVER DIDN'T RETURN CLIENT ENCODING"
                 "options": "-c client_encoding=utf8"
             },
-            pool_pre_ping=True # Verifica que la conexión siga viva
+            pool_pre_ping=True, 
+            pool_recycle=300
         )
         return engine
     except Exception as e:
@@ -34,7 +36,7 @@ def get_connection():
         return None
 
 # 3. Carga de Datos
-@st.cache_data
+@st.cache_data(ttl=600) # Recarga datos cada 10 mins
 def load_data():
     engine = get_connection()
     if engine is None:
@@ -65,39 +67,35 @@ def load_data():
 df = load_data()
 
 if df.empty:
-    st.warning("Conexión exitosa pero sin datos, o error de lectura. Verifica que tu tabla 'hechos_resenas_steam' tenga datos.")
+    st.warning("Conexión exitosa, pero no se encontraron datos en la tabla.")
     st.stop()
 
 # 4. Dashboard y ML
-st.sidebar.header("🔮 Simulador")
-st.sidebar.write("Ajusta variables para predecir ventas:")
-
-# Sliders dinámicos
+st.sidebar.header("🔮 Simulador de Ventas")
 max_reviews = int(df['conteo_resenas'].max()) if not df.empty else 1000
-sim_reviews = st.sidebar.slider("Reseñas Totales", 100, int(max_reviews * 1.5), 1000)
-sim_ratio = st.sidebar.slider("Positividad (%)", 0.0, 1.0, 0.85)
+sim_reviews = st.sidebar.slider("Cantidad de Reseñas", 100, int(max_reviews * 1.5), 1000)
+sim_ratio = st.sidebar.slider("Calidad de Reseñas (Positividad)", 0.0, 1.0, 0.85)
 
+# Modelo Machine Learning
 X = df[['conteo_resenas', 'ratio_positividad']]
 y = df['monto_ventas_usd']
 
-# Verificación de datos suficientes
 if len(df) > 5:
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X, y)
     prediccion = model.predict([[sim_reviews, sim_ratio]])[0]
     
-    col1, col2 = st.columns(2)
-    col1.metric("Ventas Predichas", f"${prediccion:,.2f} USD")
-    col2.metric("Datos Históricos", f"{len(df)} juegos")
+    # Métricas
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Ventas Predichas", f"${prediccion:,.2f}")
+    c2.metric("Datos Históricos", len(df))
+    c3.metric("Región BD", "US-WEST-2")
     
-    st.subheader("📊 Proyección de Ventas")
+    # Gráfico
     fig = px.scatter(df, x="conteo_resenas", y="monto_ventas_usd", 
-                     color="genero", hover_data=["nombre_juego"],
-                     title="Mercado Real vs Tu Simulación")
-                     
+                     color="genero", title="Proyección de Ingresos vs Reseñas")
     fig.add_scatter(x=[sim_reviews], y=[prediccion], mode='markers', 
                     marker=dict(size=25, color='red'), name='Tu Predicción')
-                    
     st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("Necesitas más datos para entrenar el modelo (mínimo 5 registros).")
+    st.info("Necesitas más datos para generar predicciones.")
