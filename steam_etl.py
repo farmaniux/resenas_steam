@@ -55,30 +55,26 @@ if __name__ == "__main__":
     if not DB_URI_SUPABASE:
         print("Falta configurar la URI de Supabase en los Secrets.")
     else:
-        # Inicialización del motor de Supabase
-        engine_sp = create_engine(DB_URI_SUPABASE)
+        # Inicialización del motor de Supabase con configuración corregida
+        engine_sp = create_engine(
+            DB_URI_SUPABASE,
+            pool_pre_ping=True,  # Verifica conexión antes de usar
+            connect_args={
+                "options": "-c client_encoding=utf8"
+            }
+        )
         
-        # --- SINGLESTORE COMENTADO PARA EVITAR ERROR SSL 1251 ---
-        # engine_ss = create_engine(
-        #     DB_URI_SINGLESTORE, 
-        #     connect_args={"ssl": {"fake_flag": True}} 
-        # )
-
         print("1. Preparando Capa Transaccional (Supabase)...")
         preparar_supabase(engine_sp)
-
+        
         print("2. Iniciando proceso ETL de Steam...")
         datos = [extraer_datos(id) for id in juegos_ids]
         df = pd.DataFrame([d for d in datos if d is not None])
-
+        
         if not df.empty:
             print("3. Cargando en Supabase (PostgreSQL)...")
             # Carga exitosa verificada en ejecuciones previas
             df.to_sql('hechos_resenas_steam', engine_sp, if_exists='append', index=False)
-            
-            # --- CARGA A SINGLESTORE COMENTADA ---
-            # print("4. Cargando en SingleStore (Data Warehouse)...")
-            # df.to_sql('hechos_resenas_steam', engine_ss, if_exists='append', index=False)
             
             print(f"¡Éxito! {len(df)} registros sincronizados en Supabase.")
         else:
