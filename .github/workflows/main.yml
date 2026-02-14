@@ -1,7 +1,8 @@
 name: Ejecución Diaria Steam ETL
-
 on:
   workflow_dispatch: # Botón manual para pruebas
+  schedule:
+    - cron: '20 6 * * *'  # 12:20 AM hora de México (Tizimín, Yucatán)
 
 jobs:
   build:
@@ -9,10 +10,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
       - name: Build Docker Image
         run: docker build -t steam-image .
-
       - name: Run Docker Container
         env:
           # Mapeo de secretos de GitHub a variables de entorno
