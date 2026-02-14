@@ -1,4 +1,4 @@
-pandas
+pandas>=2.0.0
 sqlalchemy
 psycopg2-binary
 requests
@@ -7,4 +7,4 @@ cryptography
 scikit-learn
 numpy
 plotly
-streamlit
+streamlit>=1.40.0
