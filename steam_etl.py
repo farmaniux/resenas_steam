@@ -6,34 +6,41 @@ import os
 import random
 
 # 1. Configuración de conexiones (Capa de Integración)
-# Solo mantenemos activa la URI de Supabase para estabilizar el proceso
+# Se recomienda usar la URI de IPv4 en los Secrets de GitHub para evitar errores de red
 DB_URI_SUPABASE = os.getenv('DB_URI')
-# DB_URI_SINGLESTORE = os.getenv('DB_URI_BACKUP') # Comentado temporalmente
 
 juegos_ids = [440, 550, 730, 218230, 252490, 578080, 1085660, 1172470, 1240440, 1938090]
 
 def preparar_supabase(engine):
     """Maneja la limpieza y dimensiones en PostgreSQL (Idempotencia)"""
     hoy = datetime.now().date()
-    with engine.connect() as conn:
-        # Asegurar dimensión tiempo
-        conn.execute(text("""
-            INSERT INTO dim_tiempo (id_tiempo, mes, trimestre, anio)
-            VALUES (:d, :m, :t, :a) ON CONFLICT (id_tiempo) DO NOTHING
-        """), {"d": hoy, "m": hoy.month, "t": (hoy.month - 1) // 3 + 1, "a": hoy.year})
-        
-        # Limpieza preventiva para evitar duplicados en la carga diaria
-        conn.execute(text("DELETE FROM hechos_resenas_steam WHERE fk_tiempo = :d"), {"d": hoy})
-        conn.commit()
+    try:
+        with engine.connect() as conn:
+            # Asegurar dimensión tiempo
+            conn.execute(text("""
+                INSERT INTO dim_tiempo (id_tiempo, mes, trimestre, anio)
+                VALUES (:d, :m, :t, :a) ON CONFLICT (id_tiempo) DO NOTHING
+            """), {"d": hoy, "m": hoy.month, "t": (hoy.month - 1) // 3 + 1, "a": hoy.year})
+            
+            # Limpieza preventiva para evitar duplicados en la carga diaria
+            conn.execute(text("DELETE FROM hechos_resenas_steam WHERE fk_tiempo = :d"), {"d": hoy})
+            conn.commit()
+            print("   - Capa transaccional lista (Tiempo asegurado y limpieza completada).")
+    except Exception as e:
+        print(f"   - Error en preparar_supabase: {e}")
+        raise
 
 def extraer_datos(appid):
     """Fase de Extracción y Transformación básica (ETL)"""
     url = f"https://store.steampowered.com/appreviews/{appid}?json=1&language=all"
     try:
-        r = requests.get(url, timeout=10)
+        r = requests.get(url, timeout=15)
+        r.raise_for_status()
         data = r.json()
         stats = data['query_summary']
         total_reviews = stats['total_reviews']
+        
+        # Simulación de métricas de negocio
         ventas = total_reviews * random.randint(30, 50)
         
         return {
@@ -47,35 +54,45 @@ def extraer_datos(appid):
             'conteo_resenas': total_reviews
         }
     except Exception as e:
-        print(f"Error extrayendo appid {appid}: {e}")
+        print(f"   - Error extrayendo appid {appid}: {e}")
         return None
 
 if __name__ == "__main__":
-    # Validamos solo la conexión a Supabase para evitar cierres inesperados
     if not DB_URI_SUPABASE:
-        print("Falta configurar la URI de Supabase en los Secrets.")
+        print("❌ ERROR: Falta configurar la URI de Supabase en los Secrets.")
     else:
-        # Inicialización del motor de Supabase con configuración corregida
+        # Corrección de protocolo para SQLAlchemy
+        uri_final = DB_URI_SUPABASE
+        if uri_final.startswith("postgres://"):
+            uri_final = uri_final.replace("postgres://", "postgresql+psycopg2://", 1)
+
+        # Inicialización del motor con parámetros de estabilidad para Nube/Docker
         engine_sp = create_engine(
-            DB_URI_SUPABASE,
-            pool_pre_ping=True,  # Verifica conexión antes de usar
+            uri_final,
+            pool_pre_ping=True,  # Verifica si la conexión cayó antes de intentar usarla
             connect_args={
-                "options": "-c client_encoding=utf8"
+                "options": "-c client_encoding=utf8",
+                "sslmode": "require"  # Forzar SSL para evitar bloqueos de red
             }
         )
         
-        print("1. Preparando Capa Transaccional (Supabase)...")
-        preparar_supabase(engine_sp)
-        
-        print("2. Iniciando proceso ETL de Steam...")
-        datos = [extraer_datos(id) for id in juegos_ids]
-        df = pd.DataFrame([d for d in datos if d is not None])
-        
-        if not df.empty:
-            print("3. Cargando en Supabase (PostgreSQL)...")
-            # Carga exitosa verificada en ejecuciones previas
-            df.to_sql('hechos_resenas_steam', engine_sp, if_exists='append', index=False)
+        try:
+            print("🚀 Iniciando proceso ETL de Steam-BI...")
             
-            print(f"¡Éxito! {len(df)} registros sincronizados en Supabase.")
-        else:
-            print("No se obtuvieron datos de la API.")
+            print("1. Preparando Capa Transaccional (Supabase)...")
+            preparar_supabase(engine_sp)
+            
+            print("2. Extrayendo datos de la API de Steam...")
+            datos = [extraer_datos(id) for id in juegos_ids]
+            df = pd.DataFrame([d for d in datos if d is not None])
+            
+            if not df.empty:
+                print(f"3. Cargando {len(df)} registros en Supabase (PostgreSQL)...")
+                # method='multi' acelera la carga en bases de datos remotas
+                df.to_sql('hechos_resenas_steam', engine_sp, if_exists='append', index=False, method='multi')
+                print("✅ ¡Éxito! Sincronización completada correctamente.")
+            else:
+                print("⚠️ No se obtuvieron datos válidos para cargar.")
+                
+        except Exception as e:
+            print(f"❌ ERROR CRÍTICO: El proceso falló debido a: {e}")
