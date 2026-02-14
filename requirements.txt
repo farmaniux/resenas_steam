@@ -6,3 +6,5 @@ pymysql
 cryptography
 scikit-learn
 numpy
+plotly
+streamlit
