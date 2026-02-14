@@ -10,3 +10,5 @@ plotly
 streamlit>=1.35.0
 altair<5
 matplotlib
+statsmodels
+scipy
