@@ -11,14 +11,20 @@ st.title("🎮 Steam-BI: Predicción y Análisis de Mercado")
 
 # 2. Conexión a la Base de Datos
 # Usamos st.secrets para que funcione en la nube sin exponer contraseñas
+# Sustituye tu función get_connection actual por esta:
 def get_connection():
     try:
-        # Streamlit busca esto en sus propios "secrets", no en los de GitHub Actions
-        db_url = st.secrets["DB_URI"] 
-        engine = create_engine(db_url)
+        db_url = st.secrets["DB_URI"]
+        # Pequeño truco: si la URL empieza con postgres:// lo cambiamos a postgresql://
+        # para que SQLAlchemy no se queje
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+            
+        # Agregamos connect_args para evitar timeouts
+        engine = create_engine(db_url, connect_args={'sslmode':'require'})
         return engine
     except Exception as e:
-        st.error(f"Error de configuración de secretos: {e}")
+        st.error(f"Error de configuración: {e}")
         return None
 
 # 3. Carga y Procesamiento de Datos
