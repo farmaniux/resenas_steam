@@ -530,69 +530,73 @@ tab1, tab2, tab3 = st.tabs([
 with tab1:
     st.markdown("## 📊 Inteligencia de Mercado: Volumen vs. Rentabilidad")
     
-    # Gráfico de dispersión con tendencia
-    if not df_filtered.empty and len(df_filtered) > 2:
-        fig_scatter = px.scatter(
-            df_filtered,
-            x='conteo_resenas',
-            y='monto_ventas_usd',
-            size='cantidad_descargas',
-            color='subgenero',
-            hover_name='nombre',
-            hover_data={
-                'conteo_resenas': ':,',
-                'monto_ventas_usd': ':$,.2f',
-                'cantidad_descargas': ':,',
-                'ratio_positividad': ':.1%'
-            },
-            trendline="ols",
-            labels={
-                'conteo_resenas': 'Popularidad (Número de Reseñas)',
-                'monto_ventas_usd': 'Ingresos Estimados (USD)',
-                'cantidad_descargas': 'Descargas',
-                'subgenero': 'Categoría'
-            },
-            template="plotly_dark",
-            height=550
-        )
-        
-        fig_scatter.update_layout(
-            font=dict(family="DM Sans", size=12),
-            paper_bgcolor='rgba(15, 20, 40, 0.6)',
-            plot_bgcolor='rgba(0, 0, 0, 0.2)',
-            xaxis=dict(
-                showgrid=True,
-                gridcolor='rgba(102, 126, 234, 0.1)',
-                tickformat=",",
-                title_font=dict(size=14, color='#a5b4fc')
-            ),
-            yaxis=dict(
-                showgrid=True,
-                gridcolor='rgba(102, 126, 234, 0.1)',
-                tickformat="$,.0f",
-                title_font=dict(size=14, color='#a5b4fc')
-            ),
-            legend=dict(
-                bgcolor='rgba(15, 20, 40, 0.8)',
-                bordercolor='rgba(102, 126, 234, 0.3)',
-                borderwidth=1
-            ),
-            margin=dict(t=40, b=40, l=40, r=40)
-        )
-        
-        st.plotly_chart(fig_scatter, use_container_width=True)
+    # Validar datos antes de mostrar gráficos
+    if df_filtered.empty:
+        st.warning("⚠️ No hay datos disponibles con los filtros actuales.")
+        st.info("💡 Ajusta los filtros en la barra lateral para ver el análisis de mercado.")
     else:
-        st.warning("⚠️ No hay suficientes datos para generar el gráfico de correlación.")
-    
-    st.markdown("---")
-    
-    # Dos columnas para gráficos adicionales
-    col_left, col_right = st.columns(2)
-    
-    with col_left:
-        st.markdown("### 🥧 Distribución de Mercado por Categoría")
+        # Gráfico de dispersión con tendencia
+        if len(df_filtered) > 2:
+            fig_scatter = px.scatter(
+                df_filtered,
+                x='conteo_resenas',
+                y='monto_ventas_usd',
+                size='cantidad_descargas',
+                color='subgenero',
+                hover_name='nombre',
+                hover_data={
+                    'conteo_resenas': ':,',
+                    'monto_ventas_usd': ':$,.2f',
+                    'cantidad_descargas': ':,',
+                    'ratio_positividad': ':.1%'
+                },
+                trendline="ols",
+                labels={
+                    'conteo_resenas': 'Popularidad (Número de Reseñas)',
+                    'monto_ventas_usd': 'Ingresos Estimados (USD)',
+                    'cantidad_descargas': 'Descargas',
+                    'subgenero': 'Categoría'
+                },
+                template="plotly_dark",
+                height=550
+            )
+            
+            fig_scatter.update_layout(
+                font=dict(family="DM Sans", size=12),
+                paper_bgcolor='rgba(15, 20, 40, 0.6)',
+                plot_bgcolor='rgba(0, 0, 0, 0.2)',
+                xaxis=dict(
+                    showgrid=True,
+                    gridcolor='rgba(102, 126, 234, 0.1)',
+                    tickformat=",",
+                    title_font=dict(size=14, color='#a5b4fc')
+                ),
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor='rgba(102, 126, 234, 0.1)',
+                    tickformat="$,.0f",
+                    title_font=dict(size=14, color='#a5b4fc')
+                ),
+                legend=dict(
+                    bgcolor='rgba(15, 20, 40, 0.8)',
+                    bordercolor='rgba(102, 126, 234, 0.3)',
+                    borderwidth=1
+                ),
+                margin=dict(t=40, b=40, l=40, r=40)
+            )
+            
+            st.plotly_chart(fig_scatter, use_container_width=True)
+        else:
+            st.warning("⚠️ No hay suficientes datos para generar el gráfico de correlación.")
         
-        if not df_filtered.empty:
+        st.markdown("---")
+        
+        # Dos columnas para gráficos adicionales
+        col_left, col_right = st.columns(2)
+        
+        with col_left:
+            st.markdown("### 🥧 Distribución de Mercado por Categoría")
+            
             market_share = df_filtered.groupby('subgenero')['monto_ventas_usd'].sum().reset_index()
             market_share = market_share.sort_values('monto_ventas_usd', ascending=False).head(10)
             
@@ -623,96 +627,94 @@ with tab1:
             )
             
             st.plotly_chart(fig_pie, use_container_width=True)
-        else:
-            st.info("No hay datos disponibles para este filtro.")
-    
-    with col_right:
-        st.markdown("### 🏆 Top 10: Juegos Más Rentables")
         
-        if not df_filtered.empty:
-            top_games = df_filtered.nlargest(10, 'monto_ventas_usd').sort_values('monto_ventas_usd', ascending=True)
+        with col_right:
+            st.markdown("### 🏆 Top 10: Juegos Más Rentables")
             
-            fig_bar = px.bar(
-                top_games,
-                x='monto_ventas_usd',
-                y='nombre',
-                orientation='h',
-                color='monto_ventas_usd',
-                color_continuous_scale='Purples',
-                hover_data={
-                    'monto_ventas_usd': ':$,.2f',
-                    'conteo_resenas': ':,',
-                    'ratio_positividad': ':.1%'
-                },
-                labels={
-                    'monto_ventas_usd': 'Ventas (USD)',
-                    'nombre': 'Juego'
-                },
-                template="plotly_dark"
+            if len(df_filtered) > 0:
+                top_games = df_filtered.nlargest(min(10, len(df_filtered)), 'monto_ventas_usd').sort_values('monto_ventas_usd', ascending=True)
+                
+                fig_bar = px.bar(
+                    top_games,
+                    x='monto_ventas_usd',
+                    y='nombre',
+                    orientation='h',
+                    color='monto_ventas_usd',
+                    color_continuous_scale='Purples',
+                    hover_data={
+                        'monto_ventas_usd': ':$,.2f',
+                        'conteo_resenas': ':,',
+                        'ratio_positividad': ':.1%'
+                    },
+                    labels={
+                        'monto_ventas_usd': 'Ventas (USD)',
+                        'nombre': 'Juego'
+                    },
+                    template="plotly_dark"
+                )
+                
+                fig_bar.update_layout(
+                    font=dict(family="DM Sans", size=11),
+                    paper_bgcolor='rgba(15, 20, 40, 0.6)',
+                    plot_bgcolor='rgba(0, 0, 0, 0.2)',
+                    xaxis=dict(
+                        showgrid=True,
+                        gridcolor='rgba(102, 126, 234, 0.1)',
+                        tickformat="$,.0s"
+                    ),
+                    yaxis=dict(tickfont=dict(size=10)),
+                    showlegend=False,
+                    margin=dict(t=20, b=40, l=10, r=20)
+                )
+                
+                st.plotly_chart(fig_bar, use_container_width=True)
+            else:
+                st.info("No hay datos disponibles para este filtro.")
+        
+        st.markdown("---")
+        
+        # Análisis adicional
+        st.markdown("### 📈 Análisis de Rendimiento por Desarrollador")
+        
+        if 'desarrollador' in df_filtered.columns:
+            dev_stats = df_filtered.groupby('desarrollador').agg({
+                'monto_ventas_usd': 'sum',
+                'cantidad_descargas': 'sum',
+                'nombre': 'count'
+            }).reset_index()
+            
+            dev_stats.columns = ['Desarrollador', 'Ventas Totales', 'Descargas', 'Cantidad de Juegos']
+            dev_stats = dev_stats.sort_values('Ventas Totales', ascending=False).head(15)
+            
+            fig_dev = px.bar(
+                dev_stats,
+                x='Desarrollador',
+                y='Ventas Totales',
+                color='Cantidad de Juegos',
+                hover_data=['Descargas'],
+                labels={'Ventas Totales': 'Ventas (USD)'},
+                template="plotly_dark",
+                color_continuous_scale='Viridis'
             )
             
-            fig_bar.update_layout(
-                font=dict(family="DM Sans", size=11),
+            fig_dev.update_layout(
+                font=dict(family="DM Sans", size=12),
                 paper_bgcolor='rgba(15, 20, 40, 0.6)',
                 plot_bgcolor='rgba(0, 0, 0, 0.2)',
                 xaxis=dict(
+                    showgrid=False,
+                    tickangle=-45
+                ),
+                yaxis=dict(
                     showgrid=True,
                     gridcolor='rgba(102, 126, 234, 0.1)',
                     tickformat="$,.0s"
                 ),
-                yaxis=dict(tickfont=dict(size=10)),
-                showlegend=False,
-                margin=dict(t=20, b=40, l=10, r=20)
+                margin=dict(t=40, b=100, l=40, r=40),
+                height=400
             )
             
-            st.plotly_chart(fig_bar, use_container_width=True)
-        else:
-            st.info("No hay datos disponibles para este filtro.")
-    
-    st.markdown("---")
-    
-    # Análisis adicional
-    st.markdown("### 📈 Análisis de Rendimiento por Desarrollador")
-    
-    if not df_filtered.empty and 'desarrollador' in df_filtered.columns:
-        dev_stats = df_filtered.groupby('desarrollador').agg({
-            'monto_ventas_usd': 'sum',
-            'cantidad_descargas': 'sum',
-            'nombre': 'count'
-        }).reset_index()
-        
-        dev_stats.columns = ['Desarrollador', 'Ventas Totales', 'Descargas', 'Cantidad de Juegos']
-        dev_stats = dev_stats.sort_values('Ventas Totales', ascending=False).head(15)
-        
-        fig_dev = px.bar(
-            dev_stats,
-            x='Desarrollador',
-            y='Ventas Totales',
-            color='Cantidad de Juegos',
-            hover_data=['Descargas'],
-            labels={'Ventas Totales': 'Ventas (USD)'},
-            template="plotly_dark",
-            color_continuous_scale='Viridis'
-        )
-        
-        fig_dev.update_layout(
-            font=dict(family="DM Sans", size=12),
-            paper_bgcolor='rgba(15, 20, 40, 0.6)',
-            plot_bgcolor='rgba(0, 0, 0, 0.2)',
-            xaxis=dict(
-                showgrid=False,
-                tickangle=-45
-            ),
-            yaxis=dict(
-                showgrid=True,
-                gridcolor='rgba(102, 126, 234, 0.1)',
-                tickformat="$,.0s"
-            ),
-            margin=dict(t=40, b=100, l=40, r=40),
-            height=400
-        )
-        
-        st.plotly_chart(fig_dev, use_container_width=True)
+            st.plotly_chart(fig_dev, use_container_width=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TAB 2: MOTOR PREDICTIVO
@@ -899,29 +901,38 @@ with tab3:
     st.markdown("## 🗄️ Explorador de Datos del Data Warehouse")
     st.markdown("Visualización y análisis detallado de todos los registros almacenados.")
     
-    # Selector de columnas
-    available_columns = df_filtered.columns.tolist()
-    default_columns = ['nombre', 'subgenero', 'desarrollador', 'votos_positivos', 
-                      'votos_negativos', 'monto_ventas_usd', 'cantidad_descargas', 'ratio_positividad']
-    
-    selected_columns = st.multiselect(
-        "🔍 Selecciona las columnas a mostrar:",
-        options=available_columns,
-        default=[col for col in default_columns if col in available_columns],
-        help="Personaliza las columnas visibles en la tabla"
-    )
+    # Validar que hay datos para mostrar
+    if df_filtered.empty:
+        st.warning("⚠️ No hay datos disponibles con los filtros actuales.")
+        st.info("💡 Ajusta los filtros en la barra lateral para ver más datos.")
+    else:
+        # Selector de columnas
+        available_columns = df_filtered.columns.tolist()
+        default_columns = ['nombre', 'subgenero', 'desarrollador', 'votos_positivos', 
+                          'votos_negativos', 'monto_ventas_usd', 'cantidad_descargas', 'ratio_positividad']
+        
+        selected_columns = st.multiselect(
+            "🔍 Selecciona las columnas a mostrar:",
+            options=available_columns,
+            default=[col for col in default_columns if col in available_columns],
+            help="Personaliza las columnas visibles en la tabla"
+        )
     
     if selected_columns:
         # Opciones de visualización
         col_opt1, col_opt2, col_opt3 = st.columns(3)
         
         with col_opt1:
+            # Ajustar min_value dinámicamente basado en datos disponibles
+            min_records = min(10, len(df_filtered))
+            default_records = min(50, len(df_filtered))
+            
             show_top_n = st.number_input(
                 "Mostrar primeros N registros",
-                min_value=10,
-                max_value=len(df_filtered),
-                value=min(50, len(df_filtered)),
-                step=10
+                min_value=min_records,
+                max_value=max(min_records, len(df_filtered)),
+                value=default_records,
+                step=10 if len(df_filtered) >= 10 else 1
             )
         
         with col_opt2:
