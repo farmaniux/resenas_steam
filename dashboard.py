@@ -6,7 +6,7 @@ from sklearn.ensemble import RandomForestRegressor
 import plotly.express as px
 import plotly.graph_objects as go
 
-# 1. CONFIGURACIÓN DE ÉLITE (UX/UI)
+# 1. CONFIGURACIÓN DE ÉLITE
 st.set_page_config(page_title="STEAM-BI | SUPREME INTELLIGENCE", layout="wide", page_icon="⚡")
 
 # Inyección de CSS para Diseño Profesional (Glassmorphism & Neon)
@@ -18,7 +18,6 @@ st.markdown("""
     .main { background: radial-gradient(circle, #0d1117 0%, #000000 100%); }
     h1, h2, h3 { font-family: 'Orbitron', sans-serif; color: #00f2ff !important; text-shadow: 0 0 12px #00f2ff; }
     
-    /* Contenedores de KPIs Estilo Glassmorphism */
     .stMetric {
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(0, 242, 255, 0.2);
@@ -29,7 +28,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Helper para formatear números de forma profesional (millones, billones)
+# Formateador de números profesional (Etapa 2: Tratamiento de información) [cite: 29]
 def format_n(num):
     if num >= 1e9: return f"{num / 1e9:.2f}B"
     if num >= 1e6: return f"{num / 1e6:.2f}M"
@@ -41,7 +40,7 @@ def get_engine():
     db_url = st.secrets["DB_URI"]
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
-    # Conexión cifrada SSL según especificaciones de seguridad [cite: 41]
+    # Seguridad: Conexión SSL TLS 1.2+ [cite: 41]
     return create_engine(db_url, connect_args={
         "sslmode": "require", "prepare_threshold": None, "options": "-c client_encoding=utf8"
     })
@@ -49,7 +48,7 @@ def get_engine():
 @st.cache_data(ttl=600)
 def load_data():
     engine = get_engine()
-    # Query basada en tu Esquema en Estrella [cite: 39]
+    # Query basada en Esquema en Estrella 
     query = """
         SELECT h.*, d.nombre, d.subgenero, d.desarrollador 
         FROM hechos_resenas_steam h 
@@ -57,14 +56,13 @@ def load_data():
     """
     df = pd.read_sql(query, engine)
     if not df.empty:
-        # Tratamiento de métricas y ratio de positividad [cite: 29]
         df['ratio_positividad'] = df['votos_positivos'] / (df['votos_positivos'] + df['votos_negativos'])
         df['ratio_positividad'] = df['ratio_positividad'].fillna(0)
     return df
 
 df = load_data()
 
-# --- SIDEBAR (SISTEMA DE CONTROL) ---
+# --- SIDEBAR: SISTEMA DE CONTROL ---
 with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg", width=60)
     st.title("Steam-BI Control")
@@ -75,13 +73,13 @@ with st.sidebar:
         default=df['subgenero'].unique()
     )
     st.markdown("---")
-    st.info("🎯 **Idempotencia Activa**: Datos normalizados sin duplicados diarios[cite: 26].")
+    st.info("🎯 **Idempotencia Activa**: Limpieza preventiva ejecutada[cite: 26].")
 
 df_filt = df[df['subgenero'].isin(selected_subgenres)]
 
 # --- HEADER SUPREMO ---
 st.title("⚡ STEAM-BI: SUPREME MARKET INTELLIGENCE")
-st.markdown(f"**Análisis de ROI Basado en el Algoritmo de Boxleiter** ")
+st.markdown("### `ESTIMACIÓN DE ROI | ALGORITMO DE BOXLEITER & IA` [cite: 14]")
 st.markdown("---")
 
 # --- SECCIÓN KPI: MÉTRICAS DE IMPACTO ---
@@ -95,14 +93,14 @@ with kpi_cols[2]:
 with kpi_cols[3]:
     st.metric("Juegos en DWH", f"{len(df_filt)}")
 
-# --- TABS PROFESIONALES ---
-tab1, tab2, tab3 = st.tabs(["🏛️ DOMINIO DE MERCADO", "🔮 NÚCLEO PREDICTIVO", "🛠️ AUDITORÍA & INTEGRIDAD"])
+# --- TABS DE ANÁLISIS ---
+tab1, tab2, tab3 = st.tabs(["🏛️ DOMINIO DE MERCADO", "🔮 NÚCLEO PREDICTIVO", "🛠️ AUDITORÍA DWH"])
 
 with tab1:
     st.subheader("💡 Inteligencia de Volumen vs. Rentabilidad")
     
-    # Gráfica de Correlación Élite con Línea de Tendencia (OLS)
-    # Esta línea permite identificar juegos que superan el promedio de ventas esperado por reseña.
+    # Gráfica de Correlación con Línea de Tendencia (OLS)
+    # REQUIERE statsmodels en requirements.txt
     fig_scatter = px.scatter(
         df_filt, x='conteo_resenas', y='monto_ventas_usd', size='cantidad_descargas',
         color='subgenero', hover_name='nombre', trendline="ols",
@@ -130,7 +128,7 @@ with tab2:
     y = df['monto_ventas_usd']
     
     if len(df) > 5:
-        # Modelo predictivo integrado según Etapa 5 del Ciclo de Vida 
+        # Modelo predictivo (Etapa 5: Análisis predictivo) [cite: 74]
         model = RandomForestRegressor(n_estimators=200, random_state=42).fit(X, y)
         c_sim1, c_sim2 = st.columns([1, 2])
         
@@ -155,7 +153,7 @@ with tab2:
             st.plotly_chart(fig_gauge, use_container_width=True)
 
 with tab3:
-    st.subheader("📋 Auditoría de Datos e Integridad del DWH [cite: 30]")
+    st.subheader("📋 Auditoría de Datos e Integridad del DWH")
     st.dataframe(df_filt[['nombre', 'subgenero', 'votos_positivos', 'votos_negativos', 'monto_ventas_usd']], use_container_width=True)
-    st.success("✔️ Integridad Referencial Validada: FK_Juego -> AppID[cite: 39].")
-    st.info("📅 Monitoreo: GitHub Actions ejecutando pipeline cada 24 horas[cite: 61, 62].")
+    st.success("✔️ Integridad Referencial Validada[cite: 30].")
+    st.info("📅 Monitoreo: GitHub Actions ejecutando pipeline cada 24 horas[cite: 26].")
