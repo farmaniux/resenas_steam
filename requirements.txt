@@ -7,4 +7,5 @@ cryptography
 scikit-learn
 numpy
 plotly
-streamlit>=1.40.0
+streamlit>=1.35.0
+altair<5
