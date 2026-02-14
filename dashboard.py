@@ -2,97 +2,114 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
 import plotly.express as px
+import plotly.graph_objects as go
 
-# 1. Configuración de página
-st.set_page_config(page_title="Steam-BI Analytics", layout="wide")
-st.title("🎮 Steam-BI: Predicción y Análisis de Mercado")
+# 1. Configuración Pro
+st.set_page_config(page_title="Steam-BI Analytics", layout="wide", page_icon="🎮")
 
-# 2. Conexión a Base de Datos (Configuración para Transaction Pooler)
+# CSS personalizado para mejorar el diseño
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; }
+    .stMetric { background-color: #1e2130; padding: 15px; border-radius: 10px; border: 1px solid #3e445e; }
+    </style>
+    """, unsafe_allow_html=True)
+
 def get_connection():
     try:
         db_url = st.secrets["DB_URI"]
         if db_url.startswith("postgres://"):
             db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
-            
-        engine = create_engine(
-            db_url, 
-            connect_args={
-                "sslmode": "require",
-                "prepare_threshold": None,
-                "options": "-c client_encoding=utf8"
-            },
-            pool_pre_ping=True
-        )
-        return engine
+        return create_engine(db_url, connect_args={
+            "sslmode": "require", "prepare_threshold": None, "options": "-c client_encoding=utf8"
+        })
     except Exception as e:
-        st.error(f"Error de configuración: {e}")
+        st.error(f"Error de conexión: {e}")
         return None
 
-# 3. Carga de Datos con Nombres Reales de tu Esquema
 @st.cache_data(ttl=600)
 def load_data():
     engine = get_connection()
-    if engine is None:
-        return pd.DataFrame()
-
-    # AJUSTE SEGÚN TU IMAGEN: appid y nombre
+    if not engine: return pd.DataFrame()
     query = """
-    SELECT 
-        h.cantidad_descargas,
-        h.monto_ventas_usd,
-        h.votos_positivos,
-        h.votos_negativos,
-        h.conteo_resenas,
-        d.nombre,
-        d.subgenero
-    FROM hechos_resenas_steam h
-    JOIN dim_juego d ON h.fk_juego = d.appid
+        SELECT h.*, d.nombre, d.subgenero, d.desarrollador 
+        FROM hechos_resenas_steam h 
+        JOIN dim_juego d ON h.fk_juego = d.appid
     """
-    try:
-        df = pd.read_sql(query, engine)
-        if not df.empty:
-            df['ratio_positividad'] = df['votos_positivos'] / (df['votos_positivos'] + df['votos_negativos'])
-            df = df.fillna(0)
-        return df
-    except Exception as e:
-        st.error(f"Error SQL: {e}")
-        return pd.DataFrame()
+    df = pd.read_sql(query, engine)
+    if not df.empty:
+        df['ratio_positividad'] = df['votos_positivos'] / (df['votos_positivos'] + df['votos_negativos'])
+        df['ratio_positividad'] = df['ratio_positividad'].fillna(0)
+    return df
 
 df = load_data()
 
-# 4. Verificación y Dashboard
 if df.empty:
-    st.warning("⚠️ No se encontraron datos. Verifica que el ETL haya cargado la tabla 'hechos_resenas_steam'.")
+    st.warning("No hay datos disponibles.")
     st.stop()
 
-st.sidebar.header("🔮 Simulador de Ventas")
-max_reviews = int(df['conteo_resenas'].max()) if not df.empty else 1000
-sim_reviews = st.sidebar.slider("Volumen de Reseñas", 100, int(max_reviews * 1.5), 1000)
-sim_ratio = st.sidebar.slider("Ratio de Positividad", 0.0, 1.0, 0.85)
+# --- INTERFAZ ---
+st.title("📊 Steam-BI: Intelligence Dashboard")
+st.markdown("---")
 
-X = df[['conteo_resenas', 'ratio_positividad']]
-y = df['monto_ventas_usd']
+# Fila 1: KPIs Principales
+c1, c2, c3, c4 = st.columns(4)
+with c1: st.metric("Juegos Analizados", len(df['nombre'].unique()))
+with c2: st.metric("Ventas Totales Est.", f"${df['monto_ventas_usd'].sum():,.0f}")
+with c3: st.metric("Promedio Positividad", f"{df['ratio_positividad'].mean():.1%}")
+with c4: st.metric("Total Reseñas", f"{df['conteo_resenas'].sum():,.0f}")
 
-if len(df) > 5:
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X, y)
-    prediccion = model.predict([[sim_reviews, sim_ratio]])[0]
+# Separación por Pestañas (Tabs)
+tab1, tab2, tab3 = st.tabs(["📈 Análisis de Mercado", "🔮 Simulador IA", "📁 Datos Crudos"])
+
+with tab1:
+    col_left, col_right = st.columns([1, 1])
     
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Ingresos Predichos", f"${prediccion:,.2f} USD")
-    c2.metric("Juegos en BD", len(df))
-    c3.metric("Región", "US-WEST-2")
+    with col_left:
+        st.subheader("Ventas por Subgénero")
+        fig_pie = px.pie(df, values='monto_ventas_usd', names='subgenero', hole=0.4,
+                         color_discrete_sequence=px.colors.sequential.RdBu)
+        st.plotly_chart(fig_pie, use_container_width=True)
+        
+    with col_right:
+        st.subheader("Top 10 Juegos por Ingresos")
+        top_10 = df.nlargest(10, 'monto_ventas_usd')
+        fig_bar = px.bar(top_10, x='monto_ventas_usd', y='nombre', orientation='h',
+                         color='monto_ventas_usd', color_continuous_scale='Viridis')
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    st.subheader("Correlación: Reseñas vs Ingresos")
+    fig_scatter = px.scatter(df, x="conteo_resenas", y="monto_ventas_usd", 
+                             size="cantidad_descargas", color="subgenero",
+                             hover_name="nombre", log_x=True, template="plotly_dark")
+    st.plotly_chart(fig_scatter, use_container_width=True)
+
+with tab2:
+    st.subheader("Predicción de Éxito Comercial")
+    col_sim1, col_sim2 = st.columns([1, 2])
     
-    st.subheader("📊 Análisis: Reseñas vs Ingresos")
-    fig = px.scatter(
-        df, x="conteo_resenas", y="monto_ventas_usd", 
-        color="subgenero", hover_data=["nombre"],
-        title="Mercado Real vs Simulación"
-    )
-    fig.add_scatter(x=[sim_reviews], y=[prediccion], mode='markers', 
-                    marker=dict(size=20, color='red', symbol='star'), name='Tu Predicción')
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.info("Se necesitan más registros para activar el modelo.")
+    with col_sim1:
+        st.info("Ajusta los parámetros para que la IA prediga las ventas.")
+        s_reviews = st.number_input("Expectativa de Reseñas", value=5000)
+        s_ratio = st.slider("Ratio de Positividad esperado", 0.0, 1.0, 0.8)
+        
+        # Entrenamiento rápido
+        X = df[['conteo_resenas', 'ratio_positividad']]
+        y = df['monto_ventas_usd']
+        model = RandomForestRegressor(n_estimators=100).fit(X, y)
+        pred = model.predict([[s_reviews, s_ratio]])[0]
+        
+        st.success(f"### Predicción: ${pred:,.2f} USD")
+
+    with col_sim2:
+        # Gráfico Comparativo de Predicción
+        fig_sim = go.Figure()
+        fig_sim.add_trace(go.Bar(name='Promedio Mercado', x=['Ventas'], y=[df['monto_ventas_usd'].mean()]))
+        fig_sim.add_trace(go.Bar(name='Tu Proyecto', x=['Ventas'], y=[pred], marker_color='red'))
+        fig_sim.update_layout(title="Comparativa: Tu Idea vs Promedio de Mercado")
+        st.plotly_chart(fig_sim, use_container_width=True)
+
+with tab3:
+    st.subheader("Explorador de Datos")
+    st.dataframe(df, use_container_width=True)
