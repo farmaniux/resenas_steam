@@ -1042,7 +1042,7 @@ with tab2:
                 )
                 
                 pos_obj = st.slider(
-                    "Calidad Esperada (Ratio Positividad) ",
+                    "Calidad Esperada (Ratio Positividad)",
                     min_value=0.0, max_value=1.0, value=0.80, step=0.01, format="%.2f",
                     key="pos_obj_slider"
                 )
@@ -1272,8 +1272,9 @@ with tab4:
                         bloques_texto = soup.find_all('div', class_='apphub_CardTextContent')
                         texto_completo = " ".join([bloque.text.replace("\n", "").strip() for bloque in bloques_texto])
                         
-                        # Limpiar texto residual por defecto de Steam
+                        # Limpiar texto residual por defecto de Steam y NORMALIZAR (Convertir todo a minúsculas)
                         texto_completo = texto_completo.replace("Early Access Review", "").replace("Posted", "")
+                        texto_completo = texto_completo.lower() # <--- EL TRUCO MAESTRO ESTÁ AQUÍ
                         
                         if len(texto_completo) > 50:
                             # NUEVO: Importar y configurar STOPWORDS (Palabras a ignorar)
@@ -1281,11 +1282,12 @@ with tab4:
                             import matplotlib.pyplot as plt
                             
                             palabras_basura = set(STOPWORDS)
-                            # Agregamos palabras comunes en videojuegos que no aportan valor analítico
+                            # Agregamos palabras comunes basándonos en tu análisis visual
                             palabras_basura.update([
                                 "game", "play", "playing", "player", "players", "really", 
                                 "even", "much", "one", "make", "time", "hour", "hours", 
-                                "review", "product", "February", "January", "March", "good", "bad"
+                                "review", "product", "february", "january", "march", "good", "bad",
+                                "will", "feel", "never", "take", "people", "like", "get", "got", "just"
                             ])
 
                             # Generar Nube de Palabras con el filtro aplicado
