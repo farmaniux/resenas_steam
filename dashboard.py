@@ -1390,83 +1390,129 @@ with tab4:
                             st.markdown("#### 🎭 Medidor de Sentimiento de la Comunidad")
                             st.markdown(f"Análisis matemático basado en **{total_resenas_extraidas} reseñas reales** extraídas en este momento exacto de Steam.")
 
-                            col_gauge_sent, col_detalle_sent = st.columns([1.5, 1])
+                            # Convertimos polaridad de [-1,+1] a [0,100] para posicionar la aguja
+                            pct = (polaridad_promedio + 1) / 2 * 100
+
+                            col_gauge_sent, col_detalle_sent = st.columns([1.6, 1])
 
                             with col_gauge_sent:
-                                # Gauge de polaridad: rango real de TextBlob es -1 (muy negativo) a +1 (muy positivo)
-                                # Zona ROJA:     [-1.0  a  -0.1]
-                                # Zona AMARILLA: [-0.1  a  +0.1]
-                                # Zona VERDE:    [+0.1  a  +1.0]
-                                fig_sentimiento = go.Figure(go.Indicator(
-                                    mode="gauge+number",
-                                    value=round(polaridad_promedio, 4),
-                                    number={
-                                        'font': {'size': 52, 'color': sentimiento_color, 'family': 'Space Mono'},
-                                        'valueformat': '+.3f'
-                                    },
-                                    title={
-                                        'text': f"Sentimiento General<br><span style='font-size:1.1em; color:{sentimiento_color}'><b>{sentimiento_label}</b></span>",
-                                        'font': {'size': 16, 'color': '#a5b4fc', 'family': 'Space Mono'}
-                                    },
-                                    gauge={
-                                        'axis': {
-                                            'range': [-1, 1],
-                                            'tickvals': [-1, -0.5, -0.1, 0, 0.1, 0.5, 1],
-                                            'ticktext': ['-1', '-0.5', '', '0', '', '+0.5', '+1'],
-                                            'tickwidth': 2,
-                                            'tickcolor': '#a5b4fc',
-                                            'tickfont': {'size': 11, 'color': '#a5b4fc'}
-                                        },
-                                        'bar': {
-                                            'color': sentimiento_color,
-                                            'thickness': 0.8
-                                        },
-                                        'bgcolor': 'rgba(15, 20, 40, 0.5)',
-                                        'borderwidth': 2,
-                                        'bordercolor': 'rgba(102, 126, 234, 0.4)',
-                                        'steps': [
-                                            {'range': [-1.0, -0.1], 'color': 'rgba(239, 68, 68, 0.25)'},   # ROJO
-                                            {'range': [-0.1,  0.1], 'color': 'rgba(251, 191, 36, 0.20)'},  # AMARILLO
-                                            {'range': [ 0.1,  1.0], 'color': 'rgba(52, 211, 153, 0.25)'},  # VERDE
-                                        ],
-                                        'threshold': {
-                                            'line': {'color': sentimiento_color, 'width': 5},
-                                            'thickness': 0.85,
-                                            'value': polaridad_promedio
-                                        }
-                                    }
-                                ))
 
-                                fig_sentimiento.update_layout(
-                                    paper_bgcolor='rgba(15, 20, 40, 0.6)',
-                                    font={'color': '#e0e7ff', 'family': 'DM Sans'},
-                                    height=320,
-                                    margin=dict(t=80, b=20, l=30, r=30)
-                                )
-                                st.plotly_chart(fig_sentimiento, use_container_width=True)
-
-                            with col_detalle_sent:
-                                st.markdown("##### 📐 Desglose por Reseña")
-
+                                # ── Tarjeta principal de veredicto ──────────────────────
                                 st.markdown(f"""
-                                <div style="margin-top:1rem; display:flex; flex-direction:column; gap:0.8rem;">
-                                    <div style="padding:1rem; background:rgba(52,211,153,0.1); border:1.5px solid rgba(52,211,153,0.4); border-radius:10px; text-align:center;">
-                                        <p style="margin:0; color:#34d399; font-weight:700; font-size:1.6rem;">{pos_count}</p>
-                                        <p style="margin:0; color:#94a3b8; font-size:0.8rem;">Reseñas Positivas ✅</p>
+                                <div style="
+                                    background: linear-gradient(135deg, rgba(15,20,40,0.95) 0%, rgba(26,31,58,0.9) 100%);
+                                    border: 2px solid {sentimiento_color};
+                                    border-radius: 20px;
+                                    padding: 1.8rem 2.5rem;
+                                    text-align: center;
+                                    box-shadow: 0 0 40px {sentimiento_color}33, inset 0 1px 0 rgba(255,255,255,0.05);
+                                    margin-bottom: 1.2rem;
+                                ">
+                                    <p style="margin:0; color:#94a3b8; font-size:0.78rem; text-transform:uppercase; letter-spacing:.12em; font-weight:600;">Veredicto TextBlob</p>
+                                    <p style="margin:0.3rem 0; font-size:2.6rem; font-weight:900; color:{sentimiento_color}; font-family:'Space Mono',monospace; text-shadow: 0 0 20px {sentimiento_color}88;">{sentimiento_label}</p>
+                                    <p style="margin:0; font-size:1rem; color:#e0e7ff; font-family:'Space Mono',monospace;">Polaridad: <strong style="color:{sentimiento_color};">{polaridad_promedio:+.3f}</strong></p>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                                # ── Barra horizontal con gradiente y aguja ──────────────
+                                st.markdown(f"""
+                                <div style="margin: 0.2rem 0 0 0;">
+                                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                                        <span style="color:#f87171; font-size:0.78rem; font-weight:700;">😞 NEGATIVO</span>
+                                        <span style="color:#fbbf24; font-size:0.78rem; font-weight:700;">😐 NEUTRAL</span>
+                                        <span style="color:#34d399; font-size:0.78rem; font-weight:700;">😀 POSITIVO</span>
                                     </div>
-                                    <div style="padding:1rem; background:rgba(251,191,36,0.1); border:1.5px solid rgba(251,191,36,0.4); border-radius:10px; text-align:center;">
-                                        <p style="margin:0; color:#fbbf24; font-weight:700; font-size:1.6rem;">{neu_count}</p>
-                                        <p style="margin:0; color:#94a3b8; font-size:0.8rem;">Reseñas Neutrales ⚖️</p>
+                                    <div style="position:relative; height:32px; border-radius:16px;
+                                        background: linear-gradient(to right,
+                                            #ef4444 0%, #f97316 20%, #fbbf24 42%, #fbbf24 58%, #84cc16 80%, #34d399 100%);
+                                        box-shadow: 0 2px 16px rgba(0,0,0,0.5); overflow:visible;">
+                                        <!-- Triángulo apuntando hacia abajo desde arriba -->
+                                        <div style="
+                                            position:absolute;
+                                            left: calc({pct:.1f}% - 11px);
+                                            top: -14px;
+                                            width: 0; height: 0;
+                                            border-left: 11px solid transparent;
+                                            border-right: 11px solid transparent;
+                                            border-top: 18px solid white;
+                                            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));
+                                        "></div>
+                                        <!-- Línea blanca sobre la barra -->
+                                        <div style="
+                                            position:absolute;
+                                            left: calc({pct:.1f}% - 2px);
+                                            top: 0; width: 4px; height: 32px;
+                                            background: rgba(255,255,255,0.9);
+                                            border-radius: 2px;
+                                            box-shadow: 0 0 10px rgba(255,255,255,0.8);
+                                        "></div>
                                     </div>
-                                    <div style="padding:1rem; background:rgba(248,113,113,0.1); border:1.5px solid rgba(248,113,113,0.4); border-radius:10px; text-align:center;">
-                                        <p style="margin:0; color:#f87171; font-weight:700; font-size:1.6rem;">{neg_count}</p>
-                                        <p style="margin:0; color:#94a3b8; font-size:0.8rem;">Reseñas Negativas ❌</p>
+                                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                                        <span style="color:#475569; font-size:0.68rem; font-family:'Space Mono',monospace;">-1.0</span>
+                                        <span style="color:#475569; font-size:0.68rem; font-family:'Space Mono',monospace;">-0.5</span>
+                                        <span style="color:#475569; font-size:0.68rem; font-family:'Space Mono',monospace;">0</span>
+                                        <span style="color:#475569; font-size:0.68rem; font-family:'Space Mono',monospace;">+0.5</span>
+                                        <span style="color:#475569; font-size:0.68rem; font-family:'Space Mono',monospace;">+1.0</span>
                                     </div>
                                 </div>
-                                <div style="margin-top:0.8rem; padding:1rem; background:rgba(102,126,234,0.1); border:1.5px solid rgba(102,126,234,0.35); border-radius:10px;">
-                                    <p style="margin:0; color:#a5b4fc; font-size:0.8rem; text-transform:uppercase; letter-spacing:.05em;">Subjetividad Promedio</p>
-                                    <p style="margin:0; color:#e0e7ff; font-weight:700; font-size:1.3rem; font-family:'Space Mono',monospace;">{subjetividad_promedio:.3f}</p>
-                                    <p style="margin:0; color:#64748b; font-size:0.75rem;">0 = objetivo · 1 = muy subjetivo</p>
+                                """, unsafe_allow_html=True)
+
+                                # ── Barra apilada de distribución ───────────────────────
+                                total_r = max(pos_count + neu_count + neg_count, 1)
+                                pct_pos = pos_count / total_r * 100
+                                pct_neu = neu_count / total_r * 100
+                                pct_neg = neg_count / total_r * 100
+
+                                st.markdown(f"""
+                                <div style="margin-top:1.4rem;">
+                                    <p style="margin:0 0 0.5rem 0; color:#94a3b8; font-size:0.72rem; text-transform:uppercase; letter-spacing:.08em;">
+                                        Distribución de las {total_resenas_extraidas} reseñas
+                                    </p>
+                                    <div style="display:flex; height:22px; border-radius:11px; overflow:hidden; gap:2px;">
+                                        <div style="width:{pct_pos:.1f}%; background:#34d399; display:flex; align-items:center; justify-content:center;">
+                                            <span style="color:#064e3b; font-size:0.68rem; font-weight:800;">{pos_count}</span>
+                                        </div>
+                                        <div style="width:{pct_neu:.1f}%; background:#fbbf24; display:flex; align-items:center; justify-content:center;">
+                                            <span style="color:#78350f; font-size:0.68rem; font-weight:800;">{neu_count}</span>
+                                        </div>
+                                        <div style="width:{pct_neg:.1f}%; background:#f87171; display:flex; align-items:center; justify-content:center;">
+                                            <span style="color:#7f1d1d; font-size:0.68rem; font-weight:800;">{neg_count}</span>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; gap:1.4rem; margin-top:0.5rem;">
+                                        <span style="color:#34d399; font-size:0.72rem; font-weight:600;">● Positivas {pct_pos:.0f}%</span>
+                                        <span style="color:#fbbf24; font-size:0.72rem; font-weight:600;">● Neutrales {pct_neu:.0f}%</span>
+                                        <span style="color:#f87171; font-size:0.72rem; font-weight:600;">● Negativas {pct_neg:.0f}%</span>
+                                    </div>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                            with col_detalle_sent:
+                                st.markdown("##### 📐 Métricas Detalladas")
+
+                                st.markdown(f"""
+                                <div style="display:flex; flex-direction:column; gap:0.65rem; margin-top:0.4rem;">
+                                    <div style="padding:0.9rem 1.1rem; background:rgba(52,211,153,0.08); border:1.5px solid rgba(52,211,153,0.35); border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="color:#94a3b8; font-size:0.82rem;">✅ Positivas</span>
+                                        <span style="color:#34d399; font-weight:800; font-size:1.5rem; font-family:'Space Mono',monospace;">{pos_count}</span>
+                                    </div>
+                                    <div style="padding:0.9rem 1.1rem; background:rgba(251,191,36,0.08); border:1.5px solid rgba(251,191,36,0.35); border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="color:#94a3b8; font-size:0.82rem;">⚖️ Neutrales</span>
+                                        <span style="color:#fbbf24; font-weight:800; font-size:1.5rem; font-family:'Space Mono',monospace;">{neu_count}</span>
+                                    </div>
+                                    <div style="padding:0.9rem 1.1rem; background:rgba(248,113,113,0.08); border:1.5px solid rgba(248,113,113,0.35); border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="color:#94a3b8; font-size:0.82rem;">❌ Negativas</span>
+                                        <span style="color:#f87171; font-weight:800; font-size:1.5rem; font-family:'Space Mono',monospace;">{neg_count}</span>
+                                    </div>
+                                    <div style="padding:0.9rem 1.1rem; background:rgba(102,126,234,0.08); border:1.5px solid rgba(102,126,234,0.3); border-radius:12px;">
+                                        <p style="margin:0; color:#a5b4fc; font-size:0.7rem; text-transform:uppercase; letter-spacing:.06em;">Polaridad Promedio</p>
+                                        <p style="margin:0.1rem 0 0 0; color:#e0e7ff; font-weight:800; font-size:1.2rem; font-family:'Space Mono',monospace;">{polaridad_promedio:+.4f}</p>
+                                    </div>
+                                    <div style="padding:0.9rem 1.1rem; background:rgba(102,126,234,0.04); border:1.5px solid rgba(102,126,234,0.18); border-radius:12px;">
+                                        <p style="margin:0; color:#a5b4fc; font-size:0.7rem; text-transform:uppercase; letter-spacing:.06em;">Subjetividad Promedio</p>
+                                        <p style="margin:0.1rem 0 0 0; color:#e0e7ff; font-weight:800; font-size:1.2rem; font-family:'Space Mono',monospace;">{subjetividad_promedio:.3f}</p>
+                                        <p style="margin:0; color:#475569; font-size:0.7rem;">0 = objetivo · 1 = muy subjetivo</p>
+                                    </div>
                                 </div>
                                 """, unsafe_allow_html=True)
                             # ────────────────────────────────────────────────────────────────
