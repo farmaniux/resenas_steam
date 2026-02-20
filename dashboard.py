@@ -876,8 +876,8 @@ with tab2:
                 max_value=1.0,
                 value=0.85,
                 step=0.01,
-                format="%.0f%%",
-                help="Porcentaje de reseñas positivas esperadas"
+                format="%.2f",  # <--- CORRECCIÓN APLICADA AQUÍ
+                help="Proporción de reseñas positivas esperadas"
             )
             
             st.markdown("---")
