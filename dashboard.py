@@ -1,15 +1,3 @@
-¡Excelente decisión! Con esto, tu proyecto queda blindado con una herramienta de exportación muy útil para el negocio y una función de Web Scraping que cumple sobradamente con los requisitos de la Unidad 2.
-
-Aquí tienes el código completo. He estructurado la arquitectura para que la nueva **Pestaña 4** maneje el Web Scraping de forma aislada, evitando que ralentice el resto del dashboard. También agregué el botón de exportación justo debajo de la tabla del Explorador de Datos.
-
-### ⚠️ Importante antes de ejecutar:
-
-Asegúrate de agregar estas tres librerías a tu entorno o archivo `requirements.txt`:
-`pip install beautifulsoup4 wordcloud matplotlib`
-
-### Código Completo (Actualizado)
-
-```python
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -1325,5 +1313,3 @@ st.markdown("""
     </p>
 </div>
 """, unsafe_allow_html=True)
-
-```
