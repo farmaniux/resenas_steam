@@ -12,3 +12,5 @@ altair<5
 matplotlib
 statsmodels
 scipy
+beautifulsoup4
+wordcloud
