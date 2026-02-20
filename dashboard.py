@@ -1259,7 +1259,7 @@ with tab4:
             juegos_disponibles = df_filtered['nombre'].dropna().unique()
             juego_wordcloud = st.selectbox("Juego a minar:", juegos_disponibles)
             
-            st.info("💡 **Proceso NLP Activo:**\n1. Web Scraping (Paginado)\n2. Tokenización\n3. Filtrado Regex\n4. Eliminación de Stopwords")
+            st.info("💡 **Proceso NLP Activo:**\n1. Web Scraping (Paginado)\n2. Tokenización\n3. Filtrado Regex\n4. Eliminación de Stopwords\n5. Análisis de Sentimiento (TextBlob)")
             
             ejecutar_scraping = st.button("🕷️ Iniciar Minería de Datos", type="primary", use_container_width=True)
             
@@ -1272,12 +1272,14 @@ with tab4:
                         import re
                         from wordcloud import WordCloud, STOPWORDS
                         import matplotlib.pyplot as plt
+                        from textblob import TextBlob  # <-- NUEVO: Análisis de Sentimiento
                         
                         # 1. EXTRACCIÓN MEJORADA (Paginación múltiple)
                         appid = df_filtered[df_filtered['nombre'] == juego_wordcloud]['fk_juego'].iloc[0]
                         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
                         
                         textos_recolectados = []
+                        textos_para_sentimiento = []  # <-- NUEVO: guardamos cada reseña individual para TextBlob
                         total_resenas_extraidas = 0
                         
                         # Loop para minar las primeras 5 páginas (Aprox 50 reseñas)
@@ -1288,11 +1290,14 @@ with tab4:
                             
                             bloques_texto = soup.find_all('div', class_='apphub_CardTextContent')
                             if not bloques_texto:
-                                break # Romper el ciclo si ya no hay más reseñas en esa página
+                                break  # Romper el ciclo si ya no hay más reseñas
                                 
                             total_resenas_extraidas += len(bloques_texto)
-                            texto_pagina = " ".join([bloque.text.replace("\n", "").strip() for bloque in bloques_texto])
-                            textos_recolectados.append(texto_pagina)
+                            
+                            for bloque in bloques_texto:
+                                texto_bloque = bloque.text.replace("\n", "").strip()
+                                textos_recolectados.append(texto_bloque)
+                                textos_para_sentimiento.append(texto_bloque)  # <-- NUEVO
                             
                         texto_bruto = " ".join(textos_recolectados)
                         palabras_totales_brutas = len(texto_bruto.split())
@@ -1312,7 +1317,6 @@ with tab4:
                                 "will", "feel", "never", "take", "get", "got", "just", "still",
                                 "review", "product", "ive", "pls", "yea", "yeah", "im", "dont", 
                                 "cant", "didnt", "buy", "bought", "money", "worth", "people",
-                                # Ruido temporal (Meses)
                                 "january", "february", "march", "april", "may", "june", 
                                 "july", "august", "september", "october", "november", "december"
                             ])
@@ -1331,7 +1335,35 @@ with tab4:
                             
                             palabras_post_limpieza = len(wordcloud.words_)
 
-                            # 4. VISUALIZACIÓN PROFESIONAL
+                            # ── NUEVO: ANÁLISIS DE SENTIMIENTO CON TEXTBLOB ─────────────────
+                            polaridades = []
+                            subjetividades = []
+                            for texto_resena in textos_para_sentimiento:
+                                blob = TextBlob(texto_resena)
+                                polaridades.append(blob.sentiment.polarity)
+                                subjetividades.append(blob.sentiment.subjectivity)
+
+                            polaridad_promedio = np.mean(polaridades) if polaridades else 0.0
+                            subjetividad_promedio = np.mean(subjetividades) if subjetividades else 0.0
+
+                            # Clasificar en Positivo / Neutral / Negativo
+                            if polaridad_promedio >= 0.1:
+                                sentimiento_label = "POSITIVO 😀"
+                                sentimiento_color = "#34d399"
+                            elif polaridad_promedio <= -0.1:
+                                sentimiento_label = "NEGATIVO 😞"
+                                sentimiento_color = "#f87171"
+                            else:
+                                sentimiento_label = "NEUTRAL 😐"
+                                sentimiento_color = "#fbbf24"
+
+                            # Conteo por categoría
+                            pos_count = sum(1 for p in polaridades if p >= 0.1)
+                            neg_count = sum(1 for p in polaridades if p <= -0.1)
+                            neu_count = len(polaridades) - pos_count - neg_count
+                            # ────────────────────────────────────────────────────────────────
+
+                            # 4. KPIs SUPERIORES
                             st.markdown("### 🧠 Resultados del Análisis Semántico")
                             
                             kpi1, kpi2, kpi3 = st.columns(3)
@@ -1344,17 +1376,106 @@ with tab4:
                                 
                             st.markdown("---")
                             
+                            # 5. NUBE DE PALABRAS (igual que antes)
+                            st.markdown("#### ☁️ Nube de Palabras")
                             fig_wc, ax = plt.subplots(figsize=(12, 6), facecolor='#0a0e27')
                             ax.imshow(wordcloud, interpolation='bilinear')
                             ax.axis('off')
                             plt.tight_layout(pad=0)
                             st.pyplot(fig_wc)
                             
+                            st.markdown("---")
+
+                            # ── NUEVO: MEDIDOR DE SENTIMIENTO ───────────────────────────────
+                            st.markdown("#### 🎭 Medidor de Sentimiento de la Comunidad")
+                            st.markdown(f"Análisis matemático basado en **{total_resenas_extraidas} reseñas reales** extraídas en este momento exacto de Steam.")
+
+                            col_gauge_sent, col_detalle_sent = st.columns([1.5, 1])
+
+                            with col_gauge_sent:
+                                # Gauge de polaridad: rango real de TextBlob es -1 (muy negativo) a +1 (muy positivo)
+                                # Zona ROJA:     [-1.0  a  -0.1]
+                                # Zona AMARILLA: [-0.1  a  +0.1]
+                                # Zona VERDE:    [+0.1  a  +1.0]
+                                fig_sentimiento = go.Figure(go.Indicator(
+                                    mode="gauge+number",
+                                    value=round(polaridad_promedio, 4),
+                                    number={
+                                        'font': {'size': 52, 'color': sentimiento_color, 'family': 'Space Mono'},
+                                        'valueformat': '+.3f'
+                                    },
+                                    title={
+                                        'text': f"Sentimiento General<br><span style='font-size:1.1em; color:{sentimiento_color}'><b>{sentimiento_label}</b></span>",
+                                        'font': {'size': 16, 'color': '#a5b4fc', 'family': 'Space Mono'}
+                                    },
+                                    gauge={
+                                        'axis': {
+                                            'range': [-1, 1],
+                                            'tickvals': [-1, -0.5, -0.1, 0, 0.1, 0.5, 1],
+                                            'ticktext': ['-1', '-0.5', '', '0', '', '+0.5', '+1'],
+                                            'tickwidth': 2,
+                                            'tickcolor': '#a5b4fc',
+                                            'tickfont': {'size': 11, 'color': '#a5b4fc'}
+                                        },
+                                        'bar': {
+                                            'color': sentimiento_color,
+                                            'thickness': 0.8
+                                        },
+                                        'bgcolor': 'rgba(15, 20, 40, 0.5)',
+                                        'borderwidth': 2,
+                                        'bordercolor': 'rgba(102, 126, 234, 0.4)',
+                                        'steps': [
+                                            {'range': [-1.0, -0.1], 'color': 'rgba(239, 68, 68, 0.25)'},   # ROJO
+                                            {'range': [-0.1,  0.1], 'color': 'rgba(251, 191, 36, 0.20)'},  # AMARILLO
+                                            {'range': [ 0.1,  1.0], 'color': 'rgba(52, 211, 153, 0.25)'},  # VERDE
+                                        ],
+                                        'threshold': {
+                                            'line': {'color': sentimiento_color, 'width': 5},
+                                            'thickness': 0.85,
+                                            'value': polaridad_promedio
+                                        }
+                                    }
+                                ))
+
+                                fig_sentimiento.update_layout(
+                                    paper_bgcolor='rgba(15, 20, 40, 0.6)',
+                                    font={'color': '#e0e7ff', 'family': 'DM Sans'},
+                                    height=320,
+                                    margin=dict(t=80, b=20, l=30, r=30)
+                                )
+                                st.plotly_chart(fig_sentimiento, use_container_width=True)
+
+                            with col_detalle_sent:
+                                st.markdown("##### 📐 Desglose por Reseña")
+
+                                st.markdown(f"""
+                                <div style="margin-top:1rem; display:flex; flex-direction:column; gap:0.8rem;">
+                                    <div style="padding:1rem; background:rgba(52,211,153,0.1); border:1.5px solid rgba(52,211,153,0.4); border-radius:10px; text-align:center;">
+                                        <p style="margin:0; color:#34d399; font-weight:700; font-size:1.6rem;">{pos_count}</p>
+                                        <p style="margin:0; color:#94a3b8; font-size:0.8rem;">Reseñas Positivas ✅</p>
+                                    </div>
+                                    <div style="padding:1rem; background:rgba(251,191,36,0.1); border:1.5px solid rgba(251,191,36,0.4); border-radius:10px; text-align:center;">
+                                        <p style="margin:0; color:#fbbf24; font-weight:700; font-size:1.6rem;">{neu_count}</p>
+                                        <p style="margin:0; color:#94a3b8; font-size:0.8rem;">Reseñas Neutrales ⚖️</p>
+                                    </div>
+                                    <div style="padding:1rem; background:rgba(248,113,113,0.1); border:1.5px solid rgba(248,113,113,0.4); border-radius:10px; text-align:center;">
+                                        <p style="margin:0; color:#f87171; font-weight:700; font-size:1.6rem;">{neg_count}</p>
+                                        <p style="margin:0; color:#94a3b8; font-size:0.8rem;">Reseñas Negativas ❌</p>
+                                    </div>
+                                </div>
+                                <div style="margin-top:0.8rem; padding:1rem; background:rgba(102,126,234,0.1); border:1.5px solid rgba(102,126,234,0.35); border-radius:10px;">
+                                    <p style="margin:0; color:#a5b4fc; font-size:0.8rem; text-transform:uppercase; letter-spacing:.05em;">Subjetividad Promedio</p>
+                                    <p style="margin:0; color:#e0e7ff; font-weight:700; font-size:1.3rem; font-family:'Space Mono',monospace;">{subjetividad_promedio:.3f}</p>
+                                    <p style="margin:0; color:#64748b; font-size:0.75rem;">0 = objetivo · 1 = muy subjetivo</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            # ────────────────────────────────────────────────────────────────
+                            
                         else:
                             st.warning("⚠️ El texto extraído es demasiado corto para un análisis significativo después de la limpieza.")
                             
                     except ImportError:
-                        st.error("⚠️ Faltan librerías. Ejecuta: pip install beautifulsoup4 wordcloud matplotlib")
+                        st.error("⚠️ Faltan librerías. Ejecuta: pip install beautifulsoup4 wordcloud matplotlib textblob")
                     except Exception as e:
                         st.error(f"❌ Error durante el pipeline NLP: {e}")
             else:
