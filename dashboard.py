@@ -365,9 +365,11 @@ def load_data():
             h.*, 
             d.nombre, 
             d.subgenero, 
-            d.desarrollador 
+            d.desarrollador,
+            t.id_tiempo as fecha
         FROM hechos_resenas_steam h 
         JOIN dim_juego d ON h.fk_juego = d.appid
+        LEFT JOIN dim_tiempo t ON h.fk_tiempo = t.id_tiempo
     """
     df = pd.read_sql(query, engine)
     
@@ -715,6 +717,117 @@ with tab1:
             )
             
             st.plotly_chart(fig_dev, use_container_width=True)
+
+        # ═══════════════════════════════════════════════════════════════════════════
+        # NUEVAS MEJORAS VISUALES (Series de Tiempo, Benchmarking, Matriz Correlación)
+        # ═══════════════════════════════════════════════════════════════════════════
+        st.markdown("---")
+
+        # 1. GRÁFICO DE TENDENCIAS EN EL TIEMPO (TIME SERIES)
+        st.markdown("### 📈 Tendencia de Ventas en el Tiempo")
+        if 'fecha' in df_filtered.columns and not df_filtered['fecha'].isnull().all():
+            df_time = df_filtered.groupby('fecha')['monto_ventas_usd'].sum().reset_index()
+            df_time = df_time.sort_values('fecha')
+
+            fig_time = px.line(
+                df_time,
+                x='fecha',
+                y='monto_ventas_usd',
+                template="plotly_dark",
+                labels={'fecha': 'Fecha', 'monto_ventas_usd': 'Ventas Diarias (USD)'}
+            )
+            fig_time.update_traces(line_color='#a5b4fc', line_width=3)
+            fig_time.update_layout(
+                paper_bgcolor='rgba(15, 20, 40, 0.6)',
+                plot_bgcolor='rgba(0, 0, 0, 0.2)',
+                xaxis=dict(showgrid=True, gridcolor='rgba(102, 126, 234, 0.1)'),
+                yaxis=dict(showgrid=True, gridcolor='rgba(102, 126, 234, 0.1)', tickformat="$,.0s"),
+                height=350,
+                margin=dict(t=30, b=30, l=30, r=30)
+            )
+            st.plotly_chart(fig_time, use_container_width=True)
+        else:
+            st.info("Aún no hay suficientes datos históricos de tiempo para mostrar esta tendencia.")
+
+        st.markdown("---")
+
+        col_bench, col_heat = st.columns(2)
+
+        # 2. HERRAMIENTA DE BENCHMARKING (RADAR CHART 1 VS 1)
+        with col_bench:
+            st.markdown("### ⚔️ Benchmarking: 1 vs 1")
+
+            juegos_disponibles = df_filtered['nombre'].dropna().unique()
+            if len(juegos_disponibles) >= 2:
+                g1, g2 = st.columns(2)
+                with g1: juego1 = st.selectbox("Juego A", juegos_disponibles, index=0)
+                with g2: juego2 = st.selectbox("Juego B", juegos_disponibles, index=1)
+
+                data_j1 = df_filtered[df_filtered['nombre'] == juego1].iloc[0]
+                data_j2 = df_filtered[df_filtered['nombre'] == juego2].iloc[0]
+
+                metricas = ['ratio_positividad', 'cantidad_descargas', 'monto_ventas_usd', 'conteo_resenas']
+                nombres_metricas = ['Positividad', 'Descargas', 'Ventas USD', 'Popularidad']
+
+                vals_j1 = []
+                vals_j2 = []
+                for m in metricas:
+                    val1 = float(data_j1[m]) if pd.notna(data_j1[m]) else 0.0
+                    val2 = float(data_j2[m]) if pd.notna(data_j2[m]) else 0.0
+                    max_val = max(val1, val2)
+                    max_val = max_val if max_val > 0 else 1.0 # Evitar división por cero
+                    vals_j1.append((val1 / max_val) * 100)
+                    vals_j2.append((val2 / max_val) * 100)
+
+                fig_radar = go.Figure()
+                fig_radar.add_trace(go.Scatterpolar(
+                    r=vals_j1, theta=nombres_metricas, fill='toself', name=juego1, line_color='#667eea'
+                ))
+                fig_radar.add_trace(go.Scatterpolar(
+                    r=vals_j2, theta=nombres_metricas, fill='toself', name=juego2, line_color='#f093fb'
+                ))
+
+                fig_radar.update_layout(
+                    template="plotly_dark",
+                    paper_bgcolor='rgba(15, 20, 40, 0.6)',
+                    polar=dict(
+                        radialaxis=dict(visible=True, range=[0, 100], showticklabels=False),
+                        bgcolor='rgba(0,0,0,0.2)'
+                    ),
+                    margin=dict(t=30, b=30, l=30, r=30),
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
+                )
+                st.plotly_chart(fig_radar, use_container_width=True)
+            else:
+                st.info("Necesitas al menos 2 juegos filtrados para comparar.")
+
+        # 3. MATRIZ DE CORRELACIÓN (HEATMAP)
+        with col_heat:
+            st.markdown("### 🌡️ Matriz de Correlación")
+
+            cols_corr = ['votos_positivos', 'votos_negativos', 'monto_ventas_usd', 'cantidad_descargas', 'ratio_positividad']
+            nombres_amigables = ['Positivos', 'Negativos', 'Ventas ($)', 'Descargas', 'Ratio +']
+
+            if len(df_filtered) > 2:
+                cols_validas = [c for c in cols_corr if c in df_filtered.columns]
+                corr_matrix = df_filtered[cols_validas].corr(numeric_only=True)
+
+                fig_corr = px.imshow(
+                    corr_matrix,
+                    x=nombres_amigables[:len(cols_validas)],
+                    y=nombres_amigables[:len(cols_validas)],
+                    color_continuous_scale='Purples',
+                    template="plotly_dark",
+                    text_auto=".2f",
+                    aspect="auto"
+                )
+                fig_corr.update_layout(
+                    paper_bgcolor='rgba(15, 20, 40, 0.6)',
+                    margin=dict(t=30, b=30, l=30, r=30)
+                )
+                st.plotly_chart(fig_corr, use_container_width=True)
+            else:
+                st.warning("Se requieren más datos para calcular correlaciones estadísticas.")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TAB 2: MOTOR PREDICTIVO
