@@ -1311,8 +1311,7 @@ with tab4:
                                 max_words=80,
                                 stopwords=palabras_basura,
                                 contour_width=1,
-                                contour_color='#667eea',
-                                border_color='#764ba2'
+                                contour_color='#667eea'
                             ).generate(texto_limpio)
                             
                             palabras_post_limpieza = len(wordcloud.words_)
