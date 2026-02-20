@@ -1200,7 +1200,7 @@ with tab3:
             st.metric("🔗 Columnas Activas", f"{len(selected_columns)}")
             
         # ═══════════════════════════════════════════════════════════════════════════
-        # NUEVO: BOTÓN DE EXPORTACIÓN EJECUTIVA
+        # BOTÓN DE EXPORTACIÓN EJECUTIVA
         # ═══════════════════════════════════════════════════════════════════════════
         st.markdown("---")
         st.markdown("### 📥 Exportación Ejecutiva")
@@ -1240,7 +1240,7 @@ with tab3:
         """)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 4: ANÁLISIS CUALITATIVO (WEB SCRAPING) - NUEVO
+# TAB 4: ANÁLISIS CUALITATIVO (WEB SCRAPING)
 # ═══════════════════════════════════════════════════════════════════════════
 with tab4:
     st.markdown("## ☁️ Análisis Cualitativo de Reseñas Reales")
@@ -1258,8 +1258,6 @@ with tab4:
                     try:
                         import requests
                         from bs4 import BeautifulSoup
-                        from wordcloud import WordCloud
-                        import matplotlib.pyplot as plt
                         
                         # Extraer el ID del juego (appid) desde el Data Warehouse
                         appid = df_filtered[df_filtered['nombre'] == juego_wordcloud]['fk_juego'].iloc[0]
@@ -1278,9 +1276,27 @@ with tab4:
                         texto_completo = texto_completo.replace("Early Access Review", "").replace("Posted", "")
                         
                         if len(texto_completo) > 50:
-                            # Generar Nube de Palabras
-                            wordcloud = WordCloud(width=800, height=400, background_color='#0f1428', 
-                                                colormap='Purples', max_words=100).generate(texto_completo)
+                            # NUEVO: Importar y configurar STOPWORDS (Palabras a ignorar)
+                            from wordcloud import WordCloud, STOPWORDS
+                            import matplotlib.pyplot as plt
+                            
+                            palabras_basura = set(STOPWORDS)
+                            # Agregamos palabras comunes en videojuegos que no aportan valor analítico
+                            palabras_basura.update([
+                                "game", "play", "playing", "player", "players", "really", 
+                                "even", "much", "one", "make", "time", "hour", "hours", 
+                                "review", "product", "February", "January", "March", "good", "bad"
+                            ])
+
+                            # Generar Nube de Palabras con el filtro aplicado
+                            wordcloud = WordCloud(
+                                width=800, 
+                                height=400, 
+                                background_color='#0f1428', 
+                                colormap='Purples', 
+                                max_words=100,
+                                stopwords=palabras_basura # Aplicamos el filtro aquí
+                            ).generate(texto_completo)
                             
                             with col_scrap2:
                                 st.markdown("### 🗣️ Vocabulario Frecuente de la Comunidad")
