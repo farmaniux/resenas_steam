@@ -1259,55 +1259,70 @@ with tab4:
             juegos_disponibles = df_filtered['nombre'].dropna().unique()
             juego_wordcloud = st.selectbox("Juego a minar:", juegos_disponibles)
             
-            st.info("💡 **Proceso NLP Activo:**\n1. Web Scraping\n2. Tokenización\n3. Filtrado Regex (Números/Símbolos)\n4. Eliminación de Stopwords")
+            st.info("💡 **Proceso NLP Activo:**\n1. Web Scraping (Paginado)\n2. Tokenización\n3. Filtrado Regex\n4. Eliminación de Stopwords")
             
             ejecutar_scraping = st.button("🕷️ Iniciar Minería de Datos", type="primary", use_container_width=True)
             
         with col_scrap2:
             if ejecutar_scraping:
-                with st.spinner(f'Extrayendo y procesando datos en vivo de Steam para {juego_wordcloud}...'):
+                with st.spinner(f'Navegando y extrayendo múltiples páginas de Steam para {juego_wordcloud}...'):
                     try:
-                        # 1. EXTRACCIÓN (Web Scraping)
-                        appid = df_filtered[df_filtered['nombre'] == juego_wordcloud]['fk_juego'].iloc[0]
-                        url = f"https://steamcommunity.com/app/{appid}/reviews/?browsefilter=mostrecent&paged=1"
-                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-                        respuesta = requests.get(url, headers=headers)
-                        soup = BeautifulSoup(respuesta.text, 'html.parser')
+                        import requests
+                        from bs4 import BeautifulSoup
+                        import re
+                        from wordcloud import WordCloud, STOPWORDS
+                        import matplotlib.pyplot as plt
                         
-                        bloques_texto = soup.find_all('div', class_='apphub_CardTextContent')
-                        texto_bruto = " ".join([bloque.text.replace("\n", "").strip() for bloque in bloques_texto])
+                        # 1. EXTRACCIÓN MEJORADA (Paginación múltiple)
+                        appid = df_filtered[df_filtered['nombre'] == juego_wordcloud]['fk_juego'].iloc[0]
+                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                        
+                        textos_recolectados = []
+                        total_resenas_extraidas = 0
+                        
+                        # Loop para minar las primeras 5 páginas (Aprox 50 reseñas)
+                        for pagina in range(1, 6):
+                            url = f"https://steamcommunity.com/app/{appid}/reviews/?browsefilter=mostrecent&paged={pagina}"
+                            respuesta = requests.get(url, headers=headers)
+                            soup = BeautifulSoup(respuesta.text, 'html.parser')
+                            
+                            bloques_texto = soup.find_all('div', class_='apphub_CardTextContent')
+                            if not bloques_texto:
+                                break # Romper el ciclo si ya no hay más reseñas en esa página
+                                
+                            total_resenas_extraidas += len(bloques_texto)
+                            texto_pagina = " ".join([bloque.text.replace("\n", "").strip() for bloque in bloques_texto])
+                            textos_recolectados.append(texto_pagina)
+                            
+                        texto_bruto = " ".join(textos_recolectados)
                         palabras_totales_brutas = len(texto_bruto.split())
                         
                         # 2. LIMPIEZA Y NORMALIZACIÓN (Pipeline NLP)
-                        # Eliminar marcas de agua de Steam
                         texto_limpio = texto_bruto.replace("Early Access Review", "").replace("Posted", "")
-                        # Convertir a minúsculas
                         texto_limpio = texto_limpio.lower()
-                        # REGEX: Eliminar todo lo que NO sea texto (números, puntuación, caracteres especiales)
                         texto_limpio = re.sub(r'[^a-z\s]', '', texto_limpio)
-                        # REGEX: Eliminar espacios múltiples
                         texto_limpio = re.sub(r'\s+', ' ', texto_limpio).strip()
                         
                         if len(texto_limpio) > 50:
-                            # 3. FILTRADO DE STOPWORDS (Palabras Vacías y Jerga)
+                            # 3. FILTRADO DE STOPWORDS (Actualizado con meses)
                             palabras_basura = set(STOPWORDS)
                             palabras_basura.update([
-                                # Términos genéricos del gaming
                                 "game", "play", "playing", "player", "players", "gameplay",
-                                # Verbos y adverbios comunes
                                 "really", "even", "much", "one", "make", "time", "hour", "hours", 
                                 "will", "feel", "never", "take", "get", "got", "just", "still",
-                                # Jerga de Steam y abreviaturas comunes (Ruido)
                                 "review", "product", "ive", "pls", "yea", "yeah", "im", "dont", 
-                                "cant", "didnt", "buy", "bought", "money", "worth", "people"
+                                "cant", "didnt", "buy", "bought", "money", "worth", "people",
+                                # Ruido temporal (Meses)
+                                "january", "february", "march", "april", "may", "june", 
+                                "july", "august", "september", "october", "november", "december"
                             ])
 
                             # Generar Nube de Palabras
                             wordcloud = WordCloud(
                                 width=900, 
                                 height=450, 
-                                background_color='#0a0e27', # Alineado al fondo principal
-                                colormap='cool', # Paleta vibrante y moderna
+                                background_color='#0a0e27', 
+                                colormap='cool', 
                                 max_words=80,
                                 stopwords=palabras_basura,
                                 contour_width=1,
@@ -1319,10 +1334,9 @@ with tab4:
                             # 4. VISUALIZACIÓN PROFESIONAL
                             st.markdown("### 🧠 Resultados del Análisis Semántico")
                             
-                            # KPIs del proceso NLP
                             kpi1, kpi2, kpi3 = st.columns(3)
                             with kpi1:
-                                st.metric("Reseñas Analizadas", len(bloques_texto))
+                                st.metric("Reseñas Analizadas", total_resenas_extraidas)
                             with kpi2:
                                 st.metric("Palabras Extraídas (Bruto)", f"{palabras_totales_brutas:,}")
                             with kpi3:
@@ -1330,11 +1344,9 @@ with tab4:
                                 
                             st.markdown("---")
                             
-                            # Renderizado del WordCloud
                             fig_wc, ax = plt.subplots(figsize=(12, 6), facecolor='#0a0e27')
                             ax.imshow(wordcloud, interpolation='bilinear')
                             ax.axis('off')
-                            # Ajustar márgenes para que ocupe todo el espacio
                             plt.tight_layout(pad=0)
                             st.pyplot(fig_wc)
                             
