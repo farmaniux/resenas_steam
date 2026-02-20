@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -876,7 +876,7 @@ with tab2:
                 max_value=1.0,
                 value=0.85,
                 step=0.01,
-                format="%.2f",  # <--- CORRECCIÓN APLICADA AQUÍ
+                format="%.2f",
                 help="Proporción de reseñas positivas esperadas"
             )
             
@@ -1001,7 +1001,94 @@ with tab2:
         )
         
         st.plotly_chart(fig_importance, use_container_width=True)
-        
+
+        # ═══════════════════════════════════════════════════════════════════════════
+        # NUEVO: CLASIFICADOR DE RIESGO
+        # ═══════════════════════════════════════════════════════════════════════════
+        st.markdown("---")
+        st.markdown("## 🎲 Clasificador de Riesgo Comercial (Éxito vs Fracaso)")
+        st.markdown("Evalúa la probabilidad de éxito de un proyecto basándose en su género y meta de tracción.")
+
+        if not df.empty and len(df) > 10:
+            with st.spinner('🧠 Entrenando modelo de Clasificación de Riesgo...'):
+                # 1. Definir qué es el "Éxito" (Ventas superiores al promedio del mercado)
+                umbral_exito = df['monto_ventas_usd'].median()
+                df_class = df.copy()
+                df_class['es_exito'] = (df_class['monto_ventas_usd'] >= umbral_exito).astype(int)
+                
+                # 2. Seleccionar variables predictoras (One-Hot Encoding para el género)
+                X_cat = pd.get_dummies(df_class[['subgenero']], drop_first=True)
+                X_num = df_class[['conteo_resenas', 'ratio_positividad']].fillna(0)
+                X_class = pd.concat([X_num, X_cat], axis=1)
+                y_class = df_class['es_exito']
+                
+                # 3. Entrenar el clasificador
+                clf_model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42, class_weight='balanced')
+                clf_model.fit(X_class, y_class)
+
+            col_clas_in, col_clas_out = st.columns([1, 2])
+            
+            with col_clas_in:
+                st.markdown("### 📝 Parámetros del Proyecto")
+                
+                # Selectores para el gerente
+                generos_disponibles = sorted(df['subgenero'].dropna().unique())
+                genero_input = st.selectbox("Selecciona el Género del Juego", generos_disponibles)
+                
+                resenas_obj = st.number_input(
+                    "Meta de Reseñas Iniciales",
+                    min_value=0, max_value=1000000, value=2000, step=100,
+                    help="Tracción esperada en el primer mes",
+                    key="resenas_obj_input"
+                )
+                
+                pos_obj = st.slider(
+                    "Calidad Esperada (Ratio Positividad) ",
+                    min_value=0.0, max_value=1.0, value=0.80, step=0.01, format="%.2f",
+                    key="pos_obj_slider"
+                )
+                
+            with col_clas_out:
+                st.markdown("### 📊 Veredicto de Viabilidad")
+                
+                if st.button("⚖️ Evaluar Riesgo del Proyecto", use_container_width=True):
+                    # Preparar el dato de entrada para que coincida con las columnas del modelo
+                    input_data = pd.DataFrame(columns=X_class.columns)
+                    input_data.loc[0] = 0 # Llenar todo con ceros inicialmente
+                    
+                    # Asignar los valores numéricos
+                    input_data['conteo_resenas'] = resenas_obj
+                    input_data['ratio_positividad'] = pos_obj
+                    
+                    # Activar el género seleccionado
+                    columna_genero = f'subgenero_{genero_input}'
+                    if columna_genero in input_data.columns:
+                        input_data.loc[0, columna_genero] = 1
+                        
+                    # 4. Hacer la predicción probabilística
+                    probabilidades = clf_model.predict_proba(input_data)[0]
+                    prob_fracaso = probabilidades[0]
+                    prob_exito = probabilidades[1]
+                    
+                    # 5. Visualización del resultado
+                    st.markdown(f"""
+                    <div style="display: flex; gap: 20px; margin-top: 1rem;">
+                        <div style="flex: 1; padding: 1.5rem; background: rgba(52, 211, 153, 0.1); border: 2px solid rgba(52, 211, 153, 0.4); border-radius: 12px; text-align: center;">
+                            <h4 style="color: #34d399; margin:0;">ÉXITO COMERCIAL</h4>
+                            <p style="font-size: 2.5rem; font-family: 'Space Mono', monospace; font-weight: bold; margin:0.5rem 0; color: white;">{prob_exito:.1%}</p>
+                            <p style="font-size: 0.8rem; color: #94a3b8; margin:0;">Probabilidad de superar los {format_number(umbral_exito)}</p>
+                        </div>
+                        <div style="flex: 1; padding: 1.5rem; background: rgba(248, 113, 113, 0.1); border: 2px solid rgba(248, 113, 113, 0.4); border-radius: 12px; text-align: center;">
+                            <h4 style="color: #f87171; margin:0;">RIESGO DE FRACASO</h4>
+                            <p style="font-size: 2.5rem; font-family: 'Space Mono', monospace; font-weight: bold; margin:0.5rem 0; color: white;">{prob_fracaso:.1%}</p>
+                            <p style="font-size: 0.8rem; color: #94a3b8; margin:0;">Probabilidad de no alcanzar el ROI</p>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Barra de progreso visual para el éxito
+                    st.progress(float(prob_exito))
+
     else:
         st.warning("⚠️ Se necesitan al menos 10 registros para entrenar el modelo predictivo.")
         st.info("💡 Ajusta los filtros en la barra lateral para incluir más datos.")
