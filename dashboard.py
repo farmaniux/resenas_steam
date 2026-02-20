@@ -1,3 +1,15 @@
+¡Excelente decisión! Con esto, tu proyecto queda blindado con una herramienta de exportación muy útil para el negocio y una función de Web Scraping que cumple sobradamente con los requisitos de la Unidad 2.
+
+Aquí tienes el código completo. He estructurado la arquitectura para que la nueva **Pestaña 4** maneje el Web Scraping de forma aislada, evitando que ralentice el resto del dashboard. También agregué el botón de exportación justo debajo de la tabla del Explorador de Datos.
+
+### ⚠️ Importante antes de ejecutar:
+
+Asegúrate de agregar estas tres librerías a tu entorno o archivo `requirements.txt`:
+`pip install beautifulsoup4 wordcloud matplotlib`
+
+### Código Completo (Actualizado)
+
+```python
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -458,6 +470,7 @@ with st.sidebar:
         - 📈 Análisis en tiempo real
         - 🤖 Predicciones con Machine Learning
         - 📊 Visualizaciones interactivas
+        - ☁️ Análisis de Scraping Natural
         - 🔒 Conexión segura a Supabase
         """)
 
@@ -516,13 +529,14 @@ with col4:
 st.markdown("---")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TABS DE ANÁLISIS
+# TABS DE ANÁLISIS (AHORA CON 4 PESTAÑAS)
 # ═══════════════════════════════════════════════════════════════════════════
 
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "📊 Análisis de Mercado",
     "🤖 Motor Predictivo",
-    "🗄️ Explorador de Datos"
+    "🗄️ Explorador de Datos",
+    "☁️ Análisis Cualitativo (Scraping)"
 ])
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -718,9 +732,6 @@ with tab1:
             
             st.plotly_chart(fig_dev, use_container_width=True)
 
-        # ═══════════════════════════════════════════════════════════════════════════
-        # NUEVAS MEJORAS VISUALES (Series de Tiempo, Benchmarking, Matriz Correlación)
-        # ═══════════════════════════════════════════════════════════════════════════
         st.markdown("---")
 
         # 1. GRÁFICO DE TENDENCIAS EN EL TIEMPO (TIME SERIES)
@@ -1003,7 +1014,7 @@ with tab2:
         st.plotly_chart(fig_importance, use_container_width=True)
 
         # ═══════════════════════════════════════════════════════════════════════════
-        # NUEVO: CLASIFICADOR DE RIESGO
+        # CLASIFICADOR DE RIESGO
         # ═══════════════════════════════════════════════════════════════════════════
         st.markdown("---")
         st.markdown("## 🎲 Clasificador de Riesgo Comercial (Éxito vs Fracaso)")
@@ -1199,6 +1210,22 @@ with tab3:
         
         with stat_col4:
             st.metric("🔗 Columnas Activas", f"{len(selected_columns)}")
+            
+        # ═══════════════════════════════════════════════════════════════════════════
+        # NUEVO: BOTÓN DE EXPORTACIÓN EJECUTIVA
+        # ═══════════════════════════════════════════════════════════════════════════
+        st.markdown("---")
+        st.markdown("### 📥 Exportación Ejecutiva")
+        # Convertir el dataframe mostrado a CSV
+        csv = display_df.to_csv(index=False).encode('utf-8')
+        
+        st.download_button(
+            label="📄 Descargar Reporte Actual (CSV)",
+            data=csv,
+            file_name='reporte_steam_analytics.csv',
+            mime='text/csv',
+            type="primary"
+        )
     
     else:
         st.info("👆 Selecciona al menos una columna para visualizar los datos.")
@@ -1225,6 +1252,65 @@ with tab3:
         """)
 
 # ═══════════════════════════════════════════════════════════════════════════
+# TAB 4: ANÁLISIS CUALITATIVO (WEB SCRAPING) - NUEVO
+# ═══════════════════════════════════════════════════════════════════════════
+with tab4:
+    st.markdown("## ☁️ Análisis Cualitativo de Reseñas Reales")
+    st.markdown("Motor de Web Scraping para extraer y analizar el texto de reseñas en tiempo real directamente desde la comunidad de Steam.")
+    
+    if not df_filtered.empty:
+        col_scrap1, col_scrap2 = st.columns([1, 2])
+        
+        with col_scrap1:
+            juegos_disponibles = df_filtered['nombre'].dropna().unique()
+            juego_wordcloud = st.selectbox("Selecciona un juego para minar sus reseñas:", juegos_disponibles)
+            
+            if st.button("🕷️ Iniciar Web Scraping", type="primary", use_container_width=True):
+                with st.spinner(f'Extrayendo datos en vivo de Steam para {juego_wordcloud}...'):
+                    try:
+                        import requests
+                        from bs4 import BeautifulSoup
+                        from wordcloud import WordCloud
+                        import matplotlib.pyplot as plt
+                        
+                        # Extraer el ID del juego (appid) desde el Data Warehouse
+                        appid = df_filtered[df_filtered['nombre'] == juego_wordcloud]['fk_juego'].iloc[0]
+                        
+                        # SCRAPING REAL: Vamos a la página de la comunidad de Steam
+                        url = f"https://steamcommunity.com/app/{appid}/reviews/?browsefilter=mostrecent&paged=1"
+                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+                        respuesta = requests.get(url, headers=headers)
+                        soup = BeautifulSoup(respuesta.text, 'html.parser')
+                        
+                        # Extraer los textos de las reseñas usando el tag y clase específicos de Steam
+                        bloques_texto = soup.find_all('div', class_='apphub_CardTextContent')
+                        texto_completo = " ".join([bloque.text.replace("\n", "").strip() for bloque in bloques_texto])
+                        
+                        # Limpiar texto residual por defecto de Steam
+                        texto_completo = texto_completo.replace("Early Access Review", "").replace("Posted", "")
+                        
+                        if len(texto_completo) > 50:
+                            # Generar Nube de Palabras
+                            wordcloud = WordCloud(width=800, height=400, background_color='#0f1428', 
+                                                colormap='Purples', max_words=100).generate(texto_completo)
+                            
+                            with col_scrap2:
+                                st.markdown("### 🗣️ Vocabulario Frecuente de la Comunidad")
+                                fig_wc, ax = plt.subplots(figsize=(10, 5), facecolor='#0f1428')
+                                ax.imshow(wordcloud, interpolation='bilinear')
+                                ax.axis('off')
+                                st.pyplot(fig_wc)
+                        else:
+                            st.warning("No se encontraron reseñas de texto suficientes para este juego en la primera página.")
+                            
+                    except ImportError:
+                        st.error("⚠️ Faltan librerías. Por favor, ejecuta en tu terminal: pip install beautifulsoup4 wordcloud matplotlib")
+                    except Exception as e:
+                        st.error(f"Error durante el scraping: {e}")
+    else:
+        st.info("💡 Ajusta los filtros en la barra lateral para ver juegos disponibles.")
+
+# ═══════════════════════════════════════════════════════════════════════════
 # FOOTER
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -1235,7 +1321,9 @@ st.markdown("""
         <strong>Steam Analytics v2.0</strong> · Plataforma de Inteligencia de Mercado
     </p>
     <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem;">
-        Powered by Streamlit · PostgreSQL · Scikit-Learn · Plotly
+        Powered by Streamlit · PostgreSQL · Scikit-Learn · Plotly · BeautifulSoup
     </p>
 </div>
 """, unsafe_allow_html=True)
+
+```
