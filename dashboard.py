@@ -5,6 +5,11 @@ from sqlalchemy import create_engine
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 import plotly.express as px
 import plotly.graph_objects as go
+import re  # <-- NUEVO: Para limpieza profunda con expresiones regulares en NLP
+import requests
+from bs4 import BeautifulSoup
+from wordcloud import WordCloud, STOPWORDS
+import matplotlib.pyplot as plt
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN INICIAL
@@ -517,14 +522,14 @@ with col4:
 st.markdown("---")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TABS DE ANÁLISIS (AHORA CON 4 PESTAÑAS)
+# TABS DE ANÁLISIS
 # ═══════════════════════════════════════════════════════════════════════════
 
 tab1, tab2, tab3, tab4 = st.tabs([
     "📊 Análisis de Mercado",
     "🤖 Motor Predictivo",
     "🗄️ Explorador de Datos",
-    "☁️ Análisis Cualitativo (Scraping)"
+    "☁️ Análisis Cualitativo (NLP)"
 ])
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1240,79 +1245,109 @@ with tab3:
         """)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 4: ANÁLISIS CUALITATIVO (WEB SCRAPING)
+# TAB 4: ANÁLISIS CUALITATIVO (WEB SCRAPING Y NLP)
 # ═══════════════════════════════════════════════════════════════════════════
 with tab4:
-    st.markdown("## ☁️ Análisis Cualitativo de Reseñas Reales")
-    st.markdown("Motor de Web Scraping para extraer y analizar el texto de reseñas en tiempo real directamente desde la comunidad de Steam.")
+    st.markdown("## ☁️ Motor de Inteligencia Cualitativa (NLP)")
+    st.markdown("Extracción en tiempo real y minería de textos usando técnicas de Procesamiento de Lenguaje Natural para descubrir el verdadero sentimiento de la comunidad.")
     
     if not df_filtered.empty:
-        col_scrap1, col_scrap2 = st.columns([1, 2])
+        col_scrap1, col_scrap2 = st.columns([1, 2.5])
         
         with col_scrap1:
+            st.markdown("### 🎯 Configuración del Motor")
             juegos_disponibles = df_filtered['nombre'].dropna().unique()
-            juego_wordcloud = st.selectbox("Selecciona un juego para minar sus reseñas:", juegos_disponibles)
+            juego_wordcloud = st.selectbox("Juego a minar:", juegos_disponibles)
             
-            if st.button("🕷️ Iniciar Web Scraping", type="primary", use_container_width=True):
-                with st.spinner(f'Extrayendo datos en vivo de Steam para {juego_wordcloud}...'):
+            st.info("💡 **Proceso NLP Activo:**\n1. Web Scraping\n2. Tokenización\n3. Filtrado Regex (Números/Símbolos)\n4. Eliminación de Stopwords")
+            
+            ejecutar_scraping = st.button("🕷️ Iniciar Minería de Datos", type="primary", use_container_width=True)
+            
+        with col_scrap2:
+            if ejecutar_scraping:
+                with st.spinner(f'Extrayendo y procesando datos en vivo de Steam para {juego_wordcloud}...'):
                     try:
-                        import requests
-                        from bs4 import BeautifulSoup
-                        
-                        # Extraer el ID del juego (appid) desde el Data Warehouse
+                        # 1. EXTRACCIÓN (Web Scraping)
                         appid = df_filtered[df_filtered['nombre'] == juego_wordcloud]['fk_juego'].iloc[0]
-                        
-                        # SCRAPING REAL: Vamos a la página de la comunidad de Steam
                         url = f"https://steamcommunity.com/app/{appid}/reviews/?browsefilter=mostrecent&paged=1"
-                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
                         respuesta = requests.get(url, headers=headers)
                         soup = BeautifulSoup(respuesta.text, 'html.parser')
                         
-                        # Extraer los textos de las reseñas usando el tag y clase específicos de Steam
                         bloques_texto = soup.find_all('div', class_='apphub_CardTextContent')
-                        texto_completo = " ".join([bloque.text.replace("\n", "").strip() for bloque in bloques_texto])
+                        texto_bruto = " ".join([bloque.text.replace("\n", "").strip() for bloque in bloques_texto])
+                        palabras_totales_brutas = len(texto_bruto.split())
                         
-                        # Limpiar texto residual por defecto de Steam y NORMALIZAR (Convertir todo a minúsculas)
-                        texto_completo = texto_completo.replace("Early Access Review", "").replace("Posted", "")
-                        texto_completo = texto_completo.lower() # <--- EL TRUCO MAESTRO ESTÁ AQUÍ
+                        # 2. LIMPIEZA Y NORMALIZACIÓN (Pipeline NLP)
+                        # Eliminar marcas de agua de Steam
+                        texto_limpio = texto_bruto.replace("Early Access Review", "").replace("Posted", "")
+                        # Convertir a minúsculas
+                        texto_limpio = texto_limpio.lower()
+                        # REGEX: Eliminar todo lo que NO sea texto (números, puntuación, caracteres especiales)
+                        texto_limpio = re.sub(r'[^a-z\s]', '', texto_limpio)
+                        # REGEX: Eliminar espacios múltiples
+                        texto_limpio = re.sub(r'\s+', ' ', texto_limpio).strip()
                         
-                        if len(texto_completo) > 50:
-                            # NUEVO: Importar y configurar STOPWORDS (Palabras a ignorar)
-                            from wordcloud import WordCloud, STOPWORDS
-                            import matplotlib.pyplot as plt
-                            
+                        if len(texto_limpio) > 50:
+                            # 3. FILTRADO DE STOPWORDS (Palabras Vacías y Jerga)
                             palabras_basura = set(STOPWORDS)
-                            # Agregamos palabras comunes basándonos en tu análisis visual
                             palabras_basura.update([
-                                "game", "play", "playing", "player", "players", "really", 
-                                "even", "much", "one", "make", "time", "hour", "hours", 
-                                "review", "product", "february", "january", "march", "good", "bad",
-                                "will", "feel", "never", "take", "people", "like", "get", "got", "just"
+                                # Términos genéricos del gaming
+                                "game", "play", "playing", "player", "players", "gameplay",
+                                # Verbos y adverbios comunes
+                                "really", "even", "much", "one", "make", "time", "hour", "hours", 
+                                "will", "feel", "never", "take", "get", "got", "just", "still",
+                                # Jerga de Steam y abreviaturas comunes (Ruido)
+                                "review", "product", "ive", "pls", "yea", "yeah", "im", "dont", 
+                                "cant", "didnt", "buy", "bought", "money", "worth", "people"
                             ])
 
-                            # Generar Nube de Palabras con el filtro aplicado
+                            # Generar Nube de Palabras
                             wordcloud = WordCloud(
-                                width=800, 
-                                height=400, 
-                                background_color='#0f1428', 
-                                colormap='Purples', 
-                                max_words=100,
-                                stopwords=palabras_basura # Aplicamos el filtro aquí
-                            ).generate(texto_completo)
+                                width=900, 
+                                height=450, 
+                                background_color='#0a0e27', # Alineado al fondo principal
+                                colormap='cool', # Paleta vibrante y moderna
+                                max_words=80,
+                                stopwords=palabras_basura,
+                                contour_width=1,
+                                contour_color='#667eea',
+                                border_color='#764ba2'
+                            ).generate(texto_limpio)
                             
-                            with col_scrap2:
-                                st.markdown("### 🗣️ Vocabulario Frecuente de la Comunidad")
-                                fig_wc, ax = plt.subplots(figsize=(10, 5), facecolor='#0f1428')
-                                ax.imshow(wordcloud, interpolation='bilinear')
-                                ax.axis('off')
-                                st.pyplot(fig_wc)
+                            palabras_post_limpieza = len(wordcloud.words_)
+
+                            # 4. VISUALIZACIÓN PROFESIONAL
+                            st.markdown("### 🧠 Resultados del Análisis Semántico")
+                            
+                            # KPIs del proceso NLP
+                            kpi1, kpi2, kpi3 = st.columns(3)
+                            with kpi1:
+                                st.metric("Reseñas Analizadas", len(bloques_texto))
+                            with kpi2:
+                                st.metric("Palabras Extraídas (Bruto)", f"{palabras_totales_brutas:,}")
+                            with kpi3:
+                                st.metric("Términos Clave (Limpio)", f"{palabras_post_limpieza:,}")
+                                
+                            st.markdown("---")
+                            
+                            # Renderizado del WordCloud
+                            fig_wc, ax = plt.subplots(figsize=(12, 6), facecolor='#0a0e27')
+                            ax.imshow(wordcloud, interpolation='bilinear')
+                            ax.axis('off')
+                            # Ajustar márgenes para que ocupe todo el espacio
+                            plt.tight_layout(pad=0)
+                            st.pyplot(fig_wc)
+                            
                         else:
-                            st.warning("No se encontraron reseñas de texto suficientes para este juego en la primera página.")
+                            st.warning("⚠️ El texto extraído es demasiado corto para un análisis significativo después de la limpieza.")
                             
                     except ImportError:
-                        st.error("⚠️ Faltan librerías. Por favor, ejecuta en tu terminal: pip install beautifulsoup4 wordcloud matplotlib")
+                        st.error("⚠️ Faltan librerías. Ejecuta: pip install beautifulsoup4 wordcloud matplotlib")
                     except Exception as e:
-                        st.error(f"Error durante el scraping: {e}")
+                        st.error(f"❌ Error durante el pipeline NLP: {e}")
+            else:
+                st.info("👈 Selecciona un juego en el panel izquierdo y haz clic en 'Iniciar Minería de Datos' para comenzar el análisis.")
     else:
         st.info("💡 Ajusta los filtros en la barra lateral para ver juegos disponibles.")
 
