@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy import create_engine
 from wordcloud import WordCloud, STOPWORDS
 from textblob import TextBlob  
+from sklearn.ensemble import RandomForestRegressor  # <-- NUEVO: Para el Simulador What-If
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN INICIAL
@@ -523,11 +524,12 @@ with col4:
 st.markdown("---")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TABS DE ANÁLISIS (Actualizado a 3 pestañas)
+# TABS DE ANÁLISIS (Actualizado a 4 pestañas)
 # ═══════════════════════════════════════════════════════════════════════════
 
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "📊 Análisis de Mercado",
+    "🎛️ Simulador Estratégico",
     "🗄️ Explorador de Datos",
     "☁️ Análisis Cualitativo (NLP)"
 ])
@@ -834,10 +836,97 @@ with tab1:
                 st.warning("Se requieren más datos para calcular correlaciones estadísticas.")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 2: EXPLORADOR DE DATOS (Anteriormente Tab 3)
+# TAB 2: SIMULADOR WHAT-IF (NUEVA PESTAÑA GERENCIAL)
 # ═══════════════════════════════════════════════════════════════════════════
 
 with tab2:
+    st.markdown("## 🎛️ Simulador de Escenarios (What-If Analysis)")
+    st.markdown("Estima el **Retorno de Inversión (ROI)** de un nuevo lanzamiento. El algoritmo compara tus metas de marketing con el **comportamiento histórico del mercado**.")
+    
+    if not df_filtered.empty and len(df_filtered) > 5:
+        # Preparación de datos (Entrenamiento rápido en segundo plano)
+        X = df_filtered[['conteo_resenas', 'ratio_positividad']].fillna(0)
+        y = df_filtered['monto_ventas_usd'].fillna(0)
+        
+        # El cerebro: Random Forest Regressor (El Bosque Aleatorio)
+        modelo_simulador = RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42)
+        modelo_simulador.fit(X, y)
+        
+        col_in, col_out = st.columns([1, 1.5])
+        
+        with col_in:
+            st.markdown("""
+            <div style='background: rgba(102, 126, 234, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.3);'>
+                <h4 style='color: #a5b4fc; margin-top: 0;'>1️⃣ Ingresa tus Metas Comerciales</h4>
+            """, unsafe_allow_html=True)
+            
+            # Variables de entrada con lenguaje de negocios
+            traccion_meta = st.number_input(
+                "📢 Meta de Tracción (Número de Reseñas)", 
+                min_value=100, max_value=1000000, value=2500, step=500,
+                help="¿Cuánta gente estimas que probará y reseñará el juego con tu presupuesto actual?"
+            )
+            
+            calidad_meta = st.slider(
+                "⭐ Meta de Calidad (Satisfacción %)", 
+                0.0, 1.0, 0.80, 0.01, format="%.2f",
+                help="¿Qué porcentaje de jugadores crees que dará un voto positivo al juego?"
+            )
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with col_out:
+            st.markdown("### 2️⃣ Proyección de Ingresos")
+            
+            # Hacemos la predicción al vuelo
+            proyeccion_usd = modelo_simulador.predict([[traccion_meta, calidad_meta]])[0]
+            promedio_mercado = df_filtered['monto_ventas_usd'].mean()
+            
+            # Mostrar resultado con un diseño brutalista impactante
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%); 
+                        border: 2px solid rgba(52, 211, 153, 0.4); border-radius: 16px; padding: 2rem; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                <p style="color: #34d399; margin: 0; font-size: 1rem; font-weight: bold; letter-spacing: 2px; text-transform: uppercase;">
+                    Ventas Estimadas (USD)
+                </p>
+                <p style="font-size: 4.5rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'Space Mono', monospace; text-shadow: 0px 4px 15px rgba(52, 211, 153, 0.4);">
+                    {format_number(proyeccion_usd)}
+                </p>
+                <p style="color: #94a3b8; margin: 0; font-size: 0.85rem;">
+                    *Cálculo inteligente basado en el historial de {len(df_filtered)} juegos similares.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Gráfico de comparación: Tu meta vs Promedio
+            st.markdown("#### 📊 ¿Cómo se vería tu juego frente al mercado?")
+            fig_compare = go.Figure()
+            fig_compare.add_trace(go.Bar(
+                x=['Promedio del Mercado'], y=[promedio_mercado], 
+                marker_color='rgba(102, 126, 234, 0.5)', name='Promedio Global'
+            ))
+            fig_compare.add_trace(go.Bar(
+                x=['Tu Simulación'], y=[proyeccion_usd], 
+                marker_color='#34d399', name='Tu Proyecto'
+            ))
+            
+            fig_compare.update_layout(
+                template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                height=250, margin=dict(t=10, b=10, l=10, r=10), showlegend=False,
+                yaxis=dict(title="Dólares (USD)", tickformat="$,.0s")
+            )
+            st.plotly_chart(fig_compare, use_container_width=True)
+
+    else:
+        st.warning("⚠️ Ajusta los filtros de la barra lateral. El simulador necesita más datos para aprender de la historia.")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TAB 3: EXPLORADOR DE DATOS
+# ═══════════════════════════════════════════════════════════════════════════
+
+with tab3:
     st.markdown("## 🗄️ Explorador de Datos del Data Warehouse")
     st.markdown("Visualización y análisis detallado de todos los registros almacenados.")
     
@@ -981,9 +1070,9 @@ with tab2:
         """)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 3: ANÁLISIS CUALITATIVO (NLP) (Anteriormente Tab 4)
+# TAB 4: ANÁLISIS CUALITATIVO (NLP)
 # ═══════════════════════════════════════════════════════════════════════════
-with tab3:
+with tab4:
     st.markdown("## ☁️ Motor de Inteligencia Cualitativa (NLP)")
     st.markdown("Extracción en tiempo real y minería de textos usando técnicas de Procesamiento de Lenguaje Natural para descubrir el verdadero sentimiento de la comunidad.")
     
@@ -1262,7 +1351,7 @@ st.markdown("---")
 st.markdown("""
 <div style="text-align: center; padding: 2rem 0; color: #64748b;">
     <p style="margin: 0; font-size: 0.9rem;">
-        <strong>Steam Analytics v2.0</strong> · Plataforma de Inteligencia de Mercado
+        <strong>Steam Analytics v3.0</strong> · Plataforma de Inteligencia de Mercado
     </p>
     <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem;">
         Powered by Streamlit · PostgreSQL · Plotly · BeautifulSoup
