@@ -12,6 +12,12 @@ from wordcloud import WordCloud, STOPWORDS
 from textblob import TextBlob  
 from sklearn.ensemble import RandomForestRegressor  # <-- NUEVO: Para el Simulador What-If
 
+try:
+    from fpdf import FPDF
+    PDF_ENABLED = True
+except ImportError:
+    PDF_ENABLED = False
+
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN INICIAL
 # ═══════════════════════════════════════════════════════════════════════════
@@ -343,6 +349,30 @@ def format_count(num):
         return f"{num / 1e3:.2f}K"
     return f"{num:,.0f}"
 
+def generar_pdf(ventas, descargas, ratio, juegos_count):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(200, 10, txt="Reporte Ejecutivo - Steam Analytics BI", ln=True, align='C')
+    pdf.ln(10)
+    
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(200, 10, txt="Resumen de KPIs de Mercado:", ln=True)
+    pdf.set_font("Arial", '', 12)
+    pdf.cell(200, 10, txt=f"- Ventas Totales Estimadas: {format_number(ventas)}", ln=True)
+    pdf.cell(200, 10, txt=f"- Descargas Totales: {format_count(descargas)}", ln=True)
+    pdf.cell(200, 10, txt=f"- Indice de Satisfaccion: {ratio*100:.1f}%", ln=True)
+    pdf.cell(200, 10, txt=f"- Juegos Analizados: {juegos_count}", ln=True)
+    pdf.ln(10)
+    
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(200, 10, txt="Recomendacion Estrategica:", ln=True)
+    pdf.set_font("Arial", '', 12)
+    recomendacion = "Considerar inversion en generos con ratio mayor al 80%." if ratio >= 0.8 else "Mercado altamente competitivo, requiere analisis de sentimiento profundo."
+    pdf.multi_cell(0, 10, txt=recomendacion)
+    
+    return pdf.output(dest="S").encode("latin1")
+
 # ═══════════════════════════════════════════════════════════════════════════
 # CONEXIÓN A BASE DE DATOS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -469,11 +499,29 @@ with st.sidebar:
         - 🔒 Conexión segura a Supabase
         """)
 
-# Aplicar filtros
-df_filtered = df[
-    (df['subgenero'].isin(selected_subgenres)) &
-    (df['monto_ventas_usd'].between(sales_range[0], sales_range[1]))
-].copy()
+    # --- NUEVO: BOTÓN DE PDF EN EL SIDEBAR ---
+    st.markdown("---")
+    st.markdown("#### 📄 Reportes para Gerencia")
+    
+    df_filtered = df[(df['subgenero'].isin(selected_subgenres)) & (df['monto_ventas_usd'].between(sales_range[0], sales_range[1]))].copy()
+
+    if PDF_ENABLED and not df_filtered.empty:
+        v_tot = df_filtered['monto_ventas_usd'].sum()
+        d_tot = df_filtered['cantidad_descargas'].sum()
+        r_prom = df_filtered['ratio_positividad'].mean()
+        j_tot = len(df_filtered)
+        
+        pdf_bytes = generar_pdf(v_tot, d_tot, r_prom, j_tot)
+        st.download_button(
+            label="📥 Descargar Reporte Ejecutivo (PDF)",
+            data=pdf_bytes,
+            file_name="Reporte_Steam_BI.pdf",
+            mime="application/pdf",
+            type="primary",
+            use_container_width=True
+        )
+    elif not PDF_ENABLED:
+        st.warning("⚠️ Falta librería. Abre tu terminal y ejecuta: pip install fpdf")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # HEADER PRINCIPAL
