@@ -1,4 +1,4 @@
-import re  # Para limpieza profunda con expresiones regulares en NLP
+import re  
 import requests
 import pandas as pd
 import numpy as np
@@ -8,9 +8,8 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from bs4 import BeautifulSoup
 from sqlalchemy import create_engine
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from wordcloud import WordCloud, STOPWORDS
-from textblob import TextBlob  # NUEVO: Análisis de Sentimiento
+from textblob import TextBlob  
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CONFIGURACIÓN INICIAL
@@ -464,7 +463,6 @@ with st.sidebar:
         Plataforma de inteligencia de mercado para análisis de videojuegos en Steam.
         
         - 📈 Análisis en tiempo real
-        - 🤖 Predicciones con Machine Learning
         - 📊 Visualizaciones interactivas
         - ☁️ Análisis de Scraping Natural
         - 🔒 Conexión segura a Supabase
@@ -481,7 +479,7 @@ df_filtered = df[
 # ═══════════════════════════════════════════════════════════════════════════
 
 st.markdown("# 🎮 Steam Analytics")
-st.markdown("### Plataforma de Inteligencia de Mercado · Análisis Predictivo con IA")
+st.markdown("### Plataforma de Inteligencia de Mercado")
 st.markdown("---")
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -525,12 +523,11 @@ with col4:
 st.markdown("---")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TABS DE ANÁLISIS
+# TABS DE ANÁLISIS (Actualizado a 3 pestañas)
 # ═══════════════════════════════════════════════════════════════════════════
 
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3 = st.tabs([
     "📊 Análisis de Mercado",
-    "🤖 Motor Predictivo",
     "🗄️ Explorador de Datos",
     "☁️ Análisis Cualitativo (NLP)"
 ])
@@ -837,274 +834,10 @@ with tab1:
                 st.warning("Se requieren más datos para calcular correlaciones estadísticas.")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 2: MOTOR PREDICTIVO
+# TAB 2: EXPLORADOR DE DATOS (Anteriormente Tab 3)
 # ═══════════════════════════════════════════════════════════════════════════
 
 with tab2:
-    st.markdown("## 🤖 Motor de Predicción con Inteligencia Artificial")
-    st.markdown("Utiliza algoritmos de Machine Learning para estimar el potencial de ingresos basado en métricas clave.")
-    
-    if not df.empty and len(df) > 10:
-        # Preparación de datos para el modelo
-        X = df[['conteo_resenas', 'ratio_positividad']].fillna(0)
-        y = df['monto_ventas_usd'].fillna(0)
-        
-        # Entrenamiento del modelo
-        with st.spinner('🧠 Entrenando modelo de Machine Learning...'):
-            model = RandomForestRegressor(
-                n_estimators=200,
-                max_depth=15,
-                random_state=42,
-                n_jobs=-1
-            )
-            model.fit(X, y)
-        
-        st.success("✅ Modelo entrenado exitosamente")
-        
-        col_input, col_output = st.columns([1, 2])
-        
-        with col_input:
-            st.markdown("### ⚙️ Configurar Escenario")
-            st.markdown("Ajusta los parámetros para simular diferentes escenarios de mercado.")
-            
-            # Inputs del usuario
-            input_reviews = st.number_input(
-                "📝 Número de Reseñas Proyectadas",
-                min_value=0,
-                max_value=1000000,
-                value=5000,
-                step=500,
-                help="Cantidad estimada de reseñas que recibirá el juego"
-            )
-            
-            input_positivity = st.slider(
-                "⭐ Ratio de Satisfacción Objetivo",
-                min_value=0.0,
-                max_value=1.0,
-                value=0.85,
-                step=0.01,
-                format="%.2f",
-                help="Proporción de reseñas positivas esperadas"
-            )
-            
-            st.markdown("---")
-            
-            # Botón de predicción
-            if st.button("🚀 Calcular Predicción", type="primary", use_container_width=True):
-                prediction = model.predict([[input_reviews, input_positivity]])[0]
-                
-                # Mostrar resultado
-                st.markdown(f"""
-                <div style="
-                    background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.1) 100%);
-                    padding: 2rem;
-                    border-radius: 16px;
-                    border: 2px solid rgba(102, 126, 234, 0.4);
-                    margin-top: 1rem;
-                    text-align: center;
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-                ">
-                    <p style="font-size: 0.9rem; color: #a5b4fc; margin: 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;">Ingresos Estimados</p>
-                    <p style="font-size: 3rem; font-weight: 700; color: #e0e7ff; margin: 0.5rem 0; font-family: 'Space Mono', monospace;">{format_number(prediction)}</p>
-                    <p style="font-size: 0.85rem; color: #94a3b8; margin: 0;">Basado en algoritmo Random Forest</p>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        with col_output:
-            st.markdown("### 📊 Visualización del Potencial")
-            
-            # Gauge chart mejorado
-            max_value = df['monto_ventas_usd'].max()
-            prediction = model.predict([[input_reviews, input_positivity]])[0]
-            
-            fig_gauge = go.Figure(go.Indicator(
-                mode="gauge+number+delta",
-                value=prediction,
-                domain={'x': [0, 1], 'y': [0, 1]},
-                title={
-                    'text': "Potencial vs Máximo Histórico",
-                    'font': {'size': 20, 'color': '#a5b4fc', 'family': 'Space Mono'}
-                },
-                delta={
-                    'reference': max_value * 0.5,
-                    'increasing': {'color': "#34d399"},
-                    'decreasing': {'color': "#f87171"}
-                },
-                gauge={
-                    'axis': {
-                        'range': [None, max_value],
-                        'tickwidth': 1,
-                        'tickcolor': "#667eea",
-                        'tickformat': '$,.0s'
-                    },
-                    'bar': {'color': "#667eea", 'thickness': 0.75},
-                    'bgcolor': "rgba(15, 20, 40, 0.3)",
-                    'borderwidth': 2,
-                    'bordercolor': "rgba(102, 126, 234, 0.3)",
-                    'steps': [
-                        {'range': [0, max_value * 0.33], 'color': 'rgba(248, 113, 113, 0.2)'},
-                        {'range': [max_value * 0.33, max_value * 0.66], 'color': 'rgba(251, 191, 36, 0.2)'},
-                        {'range': [max_value * 0.66, max_value], 'color': 'rgba(52, 211, 153, 0.2)'}
-                    ],
-                    'threshold': {
-                        'line': {'color': "#34d399", 'width': 4},
-                        'thickness': 0.75,
-                        'value': max_value * 0.8
-                    }
-                },
-                number={'font': {'size': 48, 'color': '#e0e7ff', 'family': 'Space Mono'}}
-            ))
-            
-            fig_gauge.update_layout(
-                paper_bgcolor='rgba(15, 20, 40, 0.6)',
-                font={'color': "#e0e7ff", 'family': 'DM Sans'},
-                height=350,
-                margin=dict(t=80, b=20, l=20, r=20)
-            )
-            
-            st.plotly_chart(fig_gauge, use_container_width=True)
-            
-            # Información adicional
-            st.markdown("#### 📈 Contexto del Modelo")
-            
-            col_a, col_b, col_c = st.columns(3)
-            with col_a:
-                st.metric("🎯 Precisión R²", f"{model.score(X, y):.3f}")
-            with col_b:
-                st.metric("🌲 Árboles", f"{model.n_estimators}")
-            with col_c:
-                avg_market = df['monto_ventas_usd'].mean()
-                st.metric("💵 Promedio Mercado", format_number(avg_market))
-        
-        st.markdown("---")
-        
-        # Análisis de importancia de características
-        st.markdown("### 🔍 Análisis de Factores Clave")
-        
-        feature_importance = pd.DataFrame({
-            'Factor': ['Número de Reseñas', 'Ratio de Positividad'],
-            'Importancia': model.feature_importances_
-        }).sort_values('Importancia', ascending=True)
-        
-        fig_importance = px.bar(
-            feature_importance,
-            x='Importancia',
-            y='Factor',
-            orientation='h',
-            template="plotly_dark",
-            color='Importancia',
-            color_continuous_scale='Purples'
-        )
-        
-        fig_importance.update_layout(
-            font=dict(family="DM Sans", size=12),
-            paper_bgcolor='rgba(15, 20, 40, 0.6)',
-            plot_bgcolor='rgba(0, 0, 0, 0.2)',
-            xaxis=dict(showgrid=True, gridcolor='rgba(102, 126, 234, 0.1)'),
-            yaxis=dict(showgrid=False),
-            showlegend=False,
-            margin=dict(t=20, b=40, l=150, r=20),
-            height=250
-        )
-        
-        st.plotly_chart(fig_importance, use_container_width=True)
-
-        # ═══════════════════════════════════════════════════════════════════════════
-        # CLASIFICADOR DE RIESGO
-        # ═══════════════════════════════════════════════════════════════════════════
-        st.markdown("---")
-        st.markdown("## 🎲 Clasificador de Riesgo Comercial (Éxito vs Fracaso)")
-        st.markdown("Evalúa la probabilidad de éxito de un proyecto basándose en su género y meta de tracción.")
-
-        if not df.empty and len(df) > 10:
-            with st.spinner('🧠 Entrenando modelo de Clasificación de Riesgo...'):
-                # 1. Definir qué es el "Éxito" (Ventas superiores al promedio del mercado)
-                umbral_exito = df['monto_ventas_usd'].median()
-                df_class = df.copy()
-                df_class['es_exito'] = (df_class['monto_ventas_usd'] >= umbral_exito).astype(int)
-                
-                # 2. Seleccionar variables predictoras (One-Hot Encoding para el género)
-                X_cat = pd.get_dummies(df_class[['subgenero']], drop_first=True)
-                X_num = df_class[['conteo_resenas', 'ratio_positividad']].fillna(0)
-                X_class = pd.concat([X_num, X_cat], axis=1)
-                y_class = df_class['es_exito']
-                
-                # 3. Entrenar el clasificador
-                clf_model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42, class_weight='balanced')
-                clf_model.fit(X_class, y_class)
-
-            col_clas_in, col_clas_out = st.columns([1, 2])
-            
-            with col_clas_in:
-                st.markdown("### 📝 Parámetros del Proyecto")
-                
-                # Selectores para el gerente
-                generos_disponibles = sorted(df['subgenero'].dropna().unique())
-                genero_input = st.selectbox("Selecciona el Género del Juego", generos_disponibles)
-                
-                resenas_obj = st.number_input(
-                    "Meta de Reseñas Iniciales",
-                    min_value=0, max_value=1000000, value=2000, step=100,
-                    help="Tracción esperada en el primer mes",
-                    key="resenas_obj_input"
-                )
-                
-                pos_obj = st.slider(
-                    "Calidad Esperada (Ratio Positividad)",
-                    min_value=0.0, max_value=1.0, value=0.80, step=0.01, format="%.2f",
-                    key="pos_obj_slider"
-                )
-                
-            with col_clas_out:
-                st.markdown("### 📊 Veredicto de Viabilidad")
-                
-                if st.button("⚖️ Evaluar Riesgo del Proyecto", use_container_width=True):
-                    # Preparar el dato de entrada para que coincida con las columnas del modelo
-                    input_data = pd.DataFrame(columns=X_class.columns)
-                    input_data.loc[0] = 0 # Llenar todo con ceros inicialmente
-                    
-                    # Asignar los valores numéricos
-                    input_data['conteo_resenas'] = resenas_obj
-                    input_data['ratio_positividad'] = pos_obj
-                    
-                    # Activar el género seleccionado
-                    columna_genero = f'subgenero_{genero_input}'
-                    if columna_genero in input_data.columns:
-                        input_data.loc[0, columna_genero] = 1
-                        
-                    # 4. Hacer la predicción probabilística
-                    probabilidades = clf_model.predict_proba(input_data)[0]
-                    prob_fracaso = probabilidades[0]
-                    prob_exito = probabilidades[1]
-                    
-                    # 5. Visualización del resultado
-                    st.markdown(f"""
-                    <div style="display: flex; gap: 20px; margin-top: 1rem;">
-                        <div style="flex: 1; padding: 1.5rem; background: rgba(52, 211, 153, 0.1); border: 2px solid rgba(52, 211, 153, 0.4); border-radius: 12px; text-align: center;">
-                            <h4 style="color: #34d399; margin:0;">ÉXITO COMERCIAL</h4>
-                            <p style="font-size: 2.5rem; font-family: 'Space Mono', monospace; font-weight: bold; margin:0.5rem 0; color: white;">{prob_exito:.1%}</p>
-                            <p style="font-size: 0.8rem; color: #94a3b8; margin:0;">Probabilidad de superar los {format_number(umbral_exito)}</p>
-                        </div>
-                        <div style="flex: 1; padding: 1.5rem; background: rgba(248, 113, 113, 0.1); border: 2px solid rgba(248, 113, 113, 0.4); border-radius: 12px; text-align: center;">
-                            <h4 style="color: #f87171; margin:0;">RIESGO DE FRACASO</h4>
-                            <p style="font-size: 2.5rem; font-family: 'Space Mono', monospace; font-weight: bold; margin:0.5rem 0; color: white;">{prob_fracaso:.1%}</p>
-                            <p style="font-size: 0.8rem; color: #94a3b8; margin:0;">Probabilidad de no alcanzar el ROI</p>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Barra de progreso visual para el éxito
-                    st.progress(float(prob_exito))
-
-    else:
-        st.warning("⚠️ Se necesitan al menos 10 registros para entrenar el modelo predictivo.")
-        st.info("💡 Ajusta los filtros en la barra lateral para incluir más datos.")
-
-# ═══════════════════════════════════════════════════════════════════════════
-# TAB 3: EXPLORADOR DE DATOS
-# ═══════════════════════════════════════════════════════════════════════════
-
-with tab3:
     st.markdown("## 🗄️ Explorador de Datos del Data Warehouse")
     st.markdown("Visualización y análisis detallado de todos los registros almacenados.")
     
@@ -1248,9 +981,9 @@ with tab3:
         """)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 4: ANÁLISIS CUALITATIVO (WEB SCRAPING Y NLP)
+# TAB 3: ANÁLISIS CUALITATIVO (NLP) (Anteriormente Tab 4)
 # ═══════════════════════════════════════════════════════════════════════════
-with tab4:
+with tab3:
     st.markdown("## ☁️ Motor de Inteligencia Cualitativa (NLP)")
     st.markdown("Extracción en tiempo real y minería de textos usando técnicas de Procesamiento de Lenguaje Natural para descubrir el verdadero sentimiento de la comunidad.")
     
@@ -1275,7 +1008,7 @@ with tab4:
                         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
                         
                         textos_recolectados = []
-                        textos_para_sentimiento = []  # NUEVO: guardamos cada reseña individual para TextBlob
+                        textos_para_sentimiento = []  
                         total_resenas_extraidas = 0
                         
                         # Loop para minar las primeras 5 páginas (Aprox 50 reseñas)
@@ -1286,14 +1019,14 @@ with tab4:
                             
                             bloques_texto = soup.find_all('div', class_='apphub_CardTextContent')
                             if not bloques_texto:
-                                break  # Romper el ciclo si ya no hay más reseñas
+                                break  
                                 
                             total_resenas_extraidas += len(bloques_texto)
                             
                             for bloque in bloques_texto:
                                 texto_bloque = bloque.text.replace("\n", "").strip()
                                 textos_recolectados.append(texto_bloque)
-                                textos_para_sentimiento.append(texto_bloque)  # NUEVO
+                                textos_para_sentimiento.append(texto_bloque)  
                             
                         texto_bruto = " ".join(textos_recolectados)
                         palabras_totales_brutas = len(texto_bruto.split())
@@ -1331,7 +1064,7 @@ with tab4:
                             
                             palabras_post_limpieza = len(wordcloud.words_)
 
-                            # ── NUEVO: ANÁLISIS DE SENTIMIENTO CON TEXTBLOB ─────────────────
+                            # ── ANÁLISIS DE SENTIMIENTO CON TEXTBLOB ─────────────────
                             polaridades = []
                             subjetividades = []
                             for texto_resena in textos_para_sentimiento:
@@ -1382,7 +1115,7 @@ with tab4:
                             
                             st.markdown("---")
 
-                            # ── NUEVO: MEDIDOR DE SENTIMIENTO ───────────────────────────────
+                            # ── MEDIDOR DE SENTIMIENTO ───────────────────────────────
                             st.markdown("#### 🎭 Medidor de Sentimiento de la Comunidad")
                             st.markdown(f"Análisis matemático basado en **{total_resenas_extraidas} reseñas reales** extraídas en este momento exacto de Steam.")
 
@@ -1508,7 +1241,6 @@ with tab4:
                                     </div>
                                 </div>
                                 """, unsafe_allow_html=True)
-                            # ────────────────────────────────────────────────────────────────
                             
                         else:
                             st.warning("⚠️ El texto extraído es demasiado corto para un análisis significativo después de la limpieza.")
@@ -1533,7 +1265,7 @@ st.markdown("""
         <strong>Steam Analytics v2.0</strong> · Plataforma de Inteligencia de Mercado
     </p>
     <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem;">
-        Powered by Streamlit · PostgreSQL · Scikit-Learn · Plotly · BeautifulSoup
+        Powered by Streamlit · PostgreSQL · Plotly · BeautifulSoup
     </p>
 </div>
 """, unsafe_allow_html=True)
