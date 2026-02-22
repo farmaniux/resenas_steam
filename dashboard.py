@@ -510,7 +510,7 @@ with col3:
     st.metric(
         "⭐ Índice de Satisfacción",
         f"{avg_positivity:.1%}",
-        help="Promedio de reseñas positivas"
+        help="Promedio de reseñas positivas. Fórmula: Positivas / (Positivas + Negativas)"
     )
 
 with col4:
@@ -836,91 +836,129 @@ with tab1:
                 st.warning("Se requieren más datos para calcular correlaciones estadísticas.")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 2: SIMULADOR WHAT-IF (NUEVA PESTAÑA GERENCIAL)
+# TAB 2: SIMULADOR DE ESCENARIOS (Riesgo y Segmentación)
 # ═══════════════════════════════════════════════════════════════════════════
 
 with tab2:
-    st.markdown("## 🎛️ Simulador de Escenarios (What-If Analysis)")
-    st.markdown("Estima el **Retorno de Inversión (ROI)** de un nuevo lanzamiento. El algoritmo compara tus metas de marketing con el **comportamiento histórico del mercado**.")
+    st.markdown("## 🎛️ Simulador de Riesgo y Estrategia Comercial (What-If)")
+    st.markdown("Proyecta los ingresos de tu lanzamiento basándote en datos reales del mercado. La Inteligencia de Negocios evalúa el riesgo y te da **tres escenarios posibles**.")
     
-    if not df_filtered.empty and len(df_filtered) > 5:
-        # Preparación de datos (Entrenamiento rápido en segundo plano)
-        X = df_filtered[['conteo_resenas', 'ratio_positividad']].fillna(0)
-        y = df_filtered['monto_ventas_usd'].fillna(0)
+    if not df.empty and len(df) > 10:
         
-        # El cerebro: Random Forest Regressor (El Bosque Aleatorio)
-        modelo_simulador = RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42)
-        modelo_simulador.fit(X, y)
-        
-        col_in, col_out = st.columns([1, 1.5])
+        # --- PREPARACIÓN DEL MODELO CON GÉNEROS (Punto 1) ---
+        with st.spinner('🧠 Entrenando modelo analítico avanzado con datos de tu DWH...'):
+            df_ml = df.copy()
+            # Convertimos los géneros en columnas (One-Hot Encoding) para que el modelo los entienda
+            df_ml = pd.get_dummies(df_ml, columns=['subgenero'], drop_first=False)
+            
+            # Variables predictoras: Reseñas, Positividad y todas las columnas de género generadas
+            columnas_genero = [col for col in df_ml.columns if col.startswith('subgenero_')]
+            X_cols = ['conteo_resenas', 'ratio_positividad'] + columnas_genero
+            
+            X = df_ml[X_cols].fillna(0)
+            y = df_ml['monto_ventas_usd'].fillna(0)
+            
+            # Entrenamos el Bosque Aleatorio
+            model = RandomForestRegressor(n_estimators=100, max_depth=12, random_state=42, n_jobs=-1)
+            model.fit(X, y)
+            
+        col_in, col_out = st.columns([1, 1.8])
         
         with col_in:
             st.markdown("""
             <div style='background: rgba(102, 126, 234, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.3);'>
-                <h4 style='color: #a5b4fc; margin-top: 0;'>1️⃣ Ingresa tus Metas Comerciales</h4>
+                <h4 style='color: #a5b4fc; margin-top: 0;'>1️⃣ Configura tu Estrategia</h4>
             """, unsafe_allow_html=True)
             
-            # Variables de entrada con lenguaje de negocios
-            traccion_meta = st.number_input(
+            # Input 1: Selector de Categoría (Punto 1 implementado)
+            generos_disponibles = sorted(df['subgenero'].dropna().unique())
+            genero_elegido = st.selectbox(
+                "🎮 Categoría del Juego", 
+                generos_disponibles,
+                help="El mercado paga distinto dependiendo si es un Shooter o un Puzzle."
+            )
+            
+            # Input 2 y 3: Tracción y Calidad
+            input_reviews = st.number_input(
                 "📢 Meta de Tracción (Número de Reseñas)", 
-                min_value=100, max_value=1000000, value=2500, step=500,
-                help="¿Cuánta gente estimas que probará y reseñará el juego con tu presupuesto actual?"
+                min_value=100, max_value=1000000, value=5000, step=500,
+                help="¿Cuánta gente probará y reseñará el juego?"
             )
             
-            calidad_meta = st.slider(
+            input_positivity = st.slider(
                 "⭐ Meta de Calidad (Satisfacción %)", 
-                0.0, 1.0, 0.80, 0.01, format="%.2f",
-                help="¿Qué porcentaje de jugadores crees que dará un voto positivo al juego?"
+                0.0, 1.0, 0.85, 0.01, format="%.2f",
+                help="Porcentaje de reseñas positivas esperado."
             )
             
+            btn_calcular = st.button("🚀 Calcular Riesgo e Ingresos", type="primary", use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
         with col_out:
-            st.markdown("### 2️⃣ Proyección de Ingresos")
+            st.markdown("### 2️⃣ Análisis de Riesgo Financiero")
             
-            # Hacemos la predicción al vuelo
-            proyeccion_usd = modelo_simulador.predict([[traccion_meta, calidad_meta]])[0]
-            promedio_mercado = df_filtered['monto_ventas_usd'].mean()
-            
-            # Mostrar resultado con un diseño brutalista impactante
-            st.markdown(f"""
-            <div style="background: linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%); 
-                        border: 2px solid rgba(52, 211, 153, 0.4); border-radius: 16px; padding: 2rem; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-                <p style="color: #34d399; margin: 0; font-size: 1rem; font-weight: bold; letter-spacing: 2px; text-transform: uppercase;">
-                    Ventas Estimadas (USD)
-                </p>
-                <p style="font-size: 4.5rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'Space Mono', monospace; text-shadow: 0px 4px 15px rgba(52, 211, 153, 0.4);">
-                    {format_number(proyeccion_usd)}
-                </p>
-                <p style="color: #94a3b8; margin: 0; font-size: 0.85rem;">
-                    *Cálculo inteligente basado en el historial de {len(df_filtered)} juegos similares.
-                </p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            # Gráfico de comparación: Tu meta vs Promedio
-            st.markdown("#### 📊 ¿Cómo se vería tu juego frente al mercado?")
-            fig_compare = go.Figure()
-            fig_compare.add_trace(go.Bar(
-                x=['Promedio del Mercado'], y=[promedio_mercado], 
-                marker_color='rgba(102, 126, 234, 0.5)', name='Promedio Global'
-            ))
-            fig_compare.add_trace(go.Bar(
-                x=['Tu Simulación'], y=[proyeccion_usd], 
-                marker_color='#34d399', name='Tu Proyecto'
-            ))
-            
-            fig_compare.update_layout(
-                template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                height=250, margin=dict(t=10, b=10, l=10, r=10), showlegend=False,
-                yaxis=dict(title="Dólares (USD)", tickformat="$,.0s")
-            )
-            st.plotly_chart(fig_compare, use_container_width=True)
+            if btn_calcular:
+                # --- PREPARAR DATOS PARA PREDICCIÓN ---
+                input_data = pd.DataFrame(columns=X_cols)
+                input_data.loc[0] = 0  # Llenamos de ceros
+                input_data['conteo_resenas'] = input_reviews
+                input_data['ratio_positividad'] = input_positivity
+                
+                # Activamos el género que eligió el usuario poniéndole un 1
+                columna_activa = f'subgenero_{genero_elegido}'
+                if columna_activa in input_data.columns:
+                    input_data.loc[0, columna_activa] = 1
+                
+                # --- EXTRAER ESCENARIOS DE RIESGO (Punto 2) ---
+                # Obtenemos las 100 predicciones individuales de los 100 árboles
+                predicciones_arboles = [arbol.predict(input_data.values)[0] for arbol in model.estimators_]
+                
+                # Calculamos percentiles para definir el riesgo
+                escenario_pesimista = np.percentile(predicciones_arboles, 15)  # El peor 15% de los casos
+                escenario_realista = np.median(predicciones_arboles)           # El caso promedio (Mediana)
+                escenario_optimista = np.percentile(predicciones_arboles, 85)  # El mejor 15% de los casos
+                
+                # --- TARJETAS DE RESULTADO ---
+                st.markdown(f"""
+                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                    <div style="flex: 1; background: rgba(248, 113, 113, 0.1); border: 2px solid rgba(248, 113, 113, 0.4); border-radius: 12px; padding: 1.5rem; text-align: center;">
+                        <p style="color: #f87171; margin: 0; font-size: 0.8rem; font-weight: bold; text-transform: uppercase;">📉 Escenario Pesimista</p>
+                        <p style="font-size: 1.8rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'Space Mono', monospace;">{format_number(escenario_pesimista)}</p>
+                        <p style="color: #94a3b8; font-size: 0.75rem; margin: 0;">Si la tracción cae rápido.</p>
+                    </div>
+                    
+                    <div style="flex: 1; background: linear-gradient(135deg, rgba(52, 211, 153, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%); border: 2px solid rgba(52, 211, 153, 0.6); border-radius: 12px; padding: 1.5rem; text-align: center; transform: scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
+                        <p style="color: #34d399; margin: 0; font-size: 0.9rem; font-weight: bold; text-transform: uppercase;">📊 Escenario Esperado</p>
+                        <p style="font-size: 2.2rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'Space Mono', monospace;">{format_number(escenario_realista)}</p>
+                        <p style="color: #94a3b8; font-size: 0.8rem; margin: 0;">Ingreso base proyectado.</p>
+                    </div>
+                    
+                    <div style="flex: 1; background: rgba(96, 165, 250, 0.1); border: 2px solid rgba(96, 165, 250, 0.4); border-radius: 12px; padding: 1.5rem; text-align: center;">
+                        <p style="color: #60a5fa; margin: 0; font-size: 0.8rem; font-weight: bold; text-transform: uppercase;">🚀 Escenario Optimista</p>
+                        <p style="font-size: 1.8rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'Space Mono', monospace;">{format_number(escenario_optimista)}</p>
+                        <p style="color: #94a3b8; font-size: 0.75rem; margin: 0;">Si el juego se vuelve viral.</p>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Gráfico de Embudo (Funnel) para explicar el riesgo
+                fig_risk = go.Figure(go.Funnel(
+                    y=["Optimista (Techo)", "Esperado (Seguro)", "Pesimista (Piso)"],
+                    x=[escenario_optimista, escenario_realista, escenario_pesimista],
+                    textinfo="value",
+                    marker={"color": ["#60a5fa", "#34d399", "#f87171"]}
+                ))
+                fig_risk.update_layout(
+                    title=f"Margen de Riesgo para un juego tipo {genero_elegido}",
+                    template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    height=250, margin=dict(t=30, b=10, l=10, r=10)
+                )
+                st.plotly_chart(fig_risk, use_container_width=True)
 
+            else:
+                st.info("Ajusta tus parámetros comerciales y presiona el botón para calcular los 3 escenarios de riesgo.")
     else:
-        st.warning("⚠️ Ajusta los filtros de la barra lateral. El simulador necesita más datos para aprender de la historia.")
+        st.warning("⚠️ Se necesitan al menos 10 registros en la base de datos para ejecutar el simulador.")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TAB 3: EXPLORADOR DE DATOS
@@ -1351,7 +1389,7 @@ st.markdown("---")
 st.markdown("""
 <div style="text-align: center; padding: 2rem 0; color: #64748b;">
     <p style="margin: 0; font-size: 0.9rem;">
-        <strong>Steam Analytics v3.0</strong> · Plataforma de Inteligencia de Mercado
+        <strong>Steam Analytics v4.0</strong> · Plataforma de Inteligencia de Mercado
     </p>
     <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem;">
         Powered by Streamlit · PostgreSQL · Plotly · BeautifulSoup
