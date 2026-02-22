@@ -510,7 +510,7 @@ with col3:
     st.metric(
         "⭐ Índice de Satisfacción",
         f"{avg_positivity:.1%}",
-        help="Promedio de reseñas positivas. Fórmula: Positivas / (Positivas + Negativas)"
+        help="Promedio de reseñas positivas"
     )
 
 with col4:
@@ -868,6 +868,8 @@ with tab2:
             st.markdown("""
             <div style='background: rgba(102, 126, 234, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.3);'>
                 <h4 style='color: #a5b4fc; margin-top: 0;'>1️⃣ Configura tu Estrategia</h4>
+            </div>
+            <br>
             """, unsafe_allow_html=True)
             
             # Input 1: Selector de Categoría (Punto 1 implementado)
@@ -892,7 +894,6 @@ with tab2:
             )
             
             btn_calcular = st.button("🚀 Calcular Riesgo e Ingresos", type="primary", use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
 
         with col_out:
             st.markdown("### 2️⃣ Análisis de Riesgo Financiero")
@@ -919,27 +920,26 @@ with tab2:
                 escenario_optimista = np.percentile(predicciones_arboles, 85)  # El mejor 15% de los casos
                 
                 # --- TARJETAS DE RESULTADO ---
-                st.markdown(f"""
-                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                    <div style="flex: 1; background: rgba(248, 113, 113, 0.1); border: 2px solid rgba(248, 113, 113, 0.4); border-radius: 12px; padding: 1.5rem; text-align: center;">
-                        <p style="color: #f87171; margin: 0; font-size: 0.8rem; font-weight: bold; text-transform: uppercase;">📉 Escenario Pesimista</p>
-                        <p style="font-size: 1.8rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'Space Mono', monospace;">{format_number(escenario_pesimista)}</p>
-                        <p style="color: #94a3b8; font-size: 0.75rem; margin: 0;">Si la tracción cae rápido.</p>
-                    </div>
-                    
-                    <div style="flex: 1; background: linear-gradient(135deg, rgba(52, 211, 153, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%); border: 2px solid rgba(52, 211, 153, 0.6); border-radius: 12px; padding: 1.5rem; text-align: center; transform: scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
-                        <p style="color: #34d399; margin: 0; font-size: 0.9rem; font-weight: bold; text-transform: uppercase;">📊 Escenario Esperado</p>
-                        <p style="font-size: 2.2rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'Space Mono', monospace;">{format_number(escenario_realista)}</p>
-                        <p style="color: #94a3b8; font-size: 0.8rem; margin: 0;">Ingreso base proyectado.</p>
-                    </div>
-                    
-                    <div style="flex: 1; background: rgba(96, 165, 250, 0.1); border: 2px solid rgba(96, 165, 250, 0.4); border-radius: 12px; padding: 1.5rem; text-align: center;">
-                        <p style="color: #60a5fa; margin: 0; font-size: 0.8rem; font-weight: bold; text-transform: uppercase;">🚀 Escenario Optimista</p>
-                        <p style="font-size: 1.8rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'Space Mono', monospace;">{format_number(escenario_optimista)}</p>
-                        <p style="color: #94a3b8; font-size: 0.75rem; margin: 0;">Si el juego se vuelve viral.</p>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                html_tarjetas = f"""
+<div style="display: flex; gap: 15px; margin-bottom: 20px;">
+    <div style="flex: 1; background: rgba(248, 113, 113, 0.1); border: 2px solid rgba(248, 113, 113, 0.4); border-radius: 12px; padding: 1.5rem; text-align: center;">
+        <p style="color: #f87171; margin: 0; font-size: 0.8rem; font-weight: bold; text-transform: uppercase;">📉 Escenario Pesimista</p>
+        <p style="font-size: 1.8rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'Space Mono', monospace;">{format_number(escenario_pesimista)}</p>
+        <p style="color: #94a3b8; font-size: 0.75rem; margin: 0;">Tracción baja.</p>
+    </div>
+    <div style="flex: 1; background: linear-gradient(135deg, rgba(52, 211, 153, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%); border: 2px solid rgba(52, 211, 153, 0.6); border-radius: 12px; padding: 1.5rem; text-align: center; transform: scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
+        <p style="color: #34d399; margin: 0; font-size: 0.9rem; font-weight: bold; text-transform: uppercase;">📊 Escenario Esperado</p>
+        <p style="font-size: 2.2rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'Space Mono', monospace;">{format_number(escenario_realista)}</p>
+        <p style="color: #94a3b8; font-size: 0.8rem; margin: 0;">Ingreso base proyectado.</p>
+    </div>
+    <div style="flex: 1; background: rgba(96, 165, 250, 0.1); border: 2px solid rgba(96, 165, 250, 0.4); border-radius: 12px; padding: 1.5rem; text-align: center;">
+        <p style="color: #60a5fa; margin: 0; font-size: 0.8rem; font-weight: bold; text-transform: uppercase;">🚀 Escenario Optimista</p>
+        <p style="font-size: 1.8rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'Space Mono', monospace;">{format_number(escenario_optimista)}</p>
+        <p style="color: #94a3b8; font-size: 0.75rem; margin: 0;">Si el juego se hace viral.</p>
+    </div>
+</div>
+"""
+                st.markdown(html_tarjetas, unsafe_allow_html=True)
                 
                 # Gráfico de Embudo (Funnel) para explicar el riesgo
                 fig_risk = go.Figure(go.Funnel(
