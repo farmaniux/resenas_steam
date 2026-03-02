@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots # <-- Agregado para la nueva gráfica doble
 import matplotlib.pyplot as plt
 import streamlit as st
 from bs4 import BeautifulSoup
@@ -374,7 +375,7 @@ def generar_pdf(ventas, descargas, ratio, juegos_count):
     return pdf.output(dest="S").encode("latin1")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CONEXIÓN A BASE DE DATOS
+# CONEXIÓN A BASE DE DATOS MODIFICADA (Ahora trae ambas tablas)
 # ═══════════════════════════════════════════════════════════════════════════
 
 @st.cache_resource(show_spinner=False)
@@ -396,9 +397,11 @@ def get_engine():
 
 @st.cache_data(ttl=600, show_spinner=False)
 def load_data():
-    """Carga y procesa datos del data warehouse"""
+    """Carga y procesa datos del data warehouse (Ambas Tablas de Hechos)"""
     engine = get_engine()
-    query = """
+    
+    # 1. Tu query original de ventas
+    query_ventas = """
         SELECT 
             h.*, 
             d.nombre, 
@@ -409,28 +412,37 @@ def load_data():
         JOIN dim_juego d ON h.fk_juego = d.appid
         LEFT JOIN dim_tiempo t ON h.fk_tiempo = t.id_tiempo
     """
-    df = pd.read_sql(query, engine)
+    df = pd.read_sql(query_ventas, engine)
     
     if not df.empty:
-        # Calcula ratio de positividad
-        df['ratio_positividad'] = df['votos_positivos'] / (
-            df['votos_positivos'] + df['votos_negativos']
-        )
+        df['ratio_positividad'] = df['votos_positivos'] / (df['votos_positivos'] + df['votos_negativos'])
         df['ratio_positividad'] = df['ratio_positividad'].fillna(0)
-        
-        # Limpieza de datos
         df['monto_ventas_usd'] = df['monto_ventas_usd'].fillna(0)
         df['cantidad_descargas'] = df['cantidad_descargas'].fillna(0)
         df['conteo_resenas'] = df['conteo_resenas'].fillna(0)
+
+    # 2. NUEVO QUERY: Datos del motor NLP de Pentaho
+    query_nlp = """
+        SELECT 
+            s.*, 
+            d.nombre 
+        FROM hechos_sentimiento s
+        JOIN dim_juego d ON s.fk_juego = d.appid
+        ORDER BY s.fk_tiempo ASC
+    """
+    try:
+        df_nlp = pd.read_sql(query_nlp, engine)
+    except Exception as e:
+        df_nlp = pd.DataFrame() # Si la tabla no existe o falla, devuelve vacío
     
-    return df
+    return df, df_nlp
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CARGA DE DATOS CON INDICADOR
 # ═══════════════════════════════════════════════════════════════════════════
 
 with st.spinner('⚡ Cargando datos del data warehouse...'):
-    df = load_data()
+    df, df_nlp = load_data()
 
 # Validación de datos
 if df.empty:
@@ -579,7 +591,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "📊 Análisis de Mercado",
     "🎛️ Simulador Estratégico",
     "🗄️ Explorador de Datos",
-    "☁️ Análisis Cualitativo (NLP)"
+    "☁️ Inteligencia NLP (Premium)"
 ])
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1152,282 +1164,113 @@ with tab3:
         st.markdown("""
         - 🤖 Pipeline ETL ejecutándose cada 24 horas
         - 🔒 Conexión SSL/TLS segura a Supabase
-        - 📊 GitHub Actions monitoreando el proceso
+        - 📊 Motor VADER procesando lenguaje natural
         """)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 4: ANÁLISIS CUALITATIVO (NLP)
+# TAB 4: INTELIGENCIA CUALITATIVA (NUEVA VERSIÓN VADER + DATA WAREHOUSE)
 # ═══════════════════════════════════════════════════════════════════════════
 with tab4:
-    st.markdown("## ☁️ Motor de Inteligencia Cualitativa (NLP)")
-    st.markdown("Extracción en tiempo real y minería de textos usando técnicas de Procesamiento de Lenguaje Natural para descubrir el verdadero sentimiento de la comunidad.")
+    st.markdown("## 🧠 Motor de Inteligencia Cualitativa (VADER NLP)")
+    st.markdown("Lectura directa del Data Warehouse. Análisis histórico de sentimiento, palabras clave y correlación con jugadores activos.")
     
-    if not df_filtered.empty:
-        col_scrap1, col_scrap2 = st.columns([1, 2.5])
+    if not df_nlp.empty:
+        col_ctrl1, col_ctrl2 = st.columns([1, 3])
         
-        with col_scrap1:
-            st.markdown("### 🎯 Configuración del Motor")
-            juegos_disponibles = df_filtered['nombre'].dropna().unique()
-            juego_wordcloud = st.selectbox("Juego a minar:", juegos_disponibles)
+        with col_ctrl1:
+            st.markdown("### 🎯 Seleccionar Título")
+            juegos_disponibles_nlp = sorted(df_nlp['nombre'].unique())
+            juego_seleccionado = st.selectbox("Juego a analizar:", juegos_disponibles_nlp)
             
-            st.info("💡 **Proceso NLP Activo:**\n1. Web Scraping (Paginado)\n2. Tokenización\n3. Filtrado Regex\n4. Eliminación de Stopwords\n5. Análisis de Sentimiento (TextBlob)")
+            # Filtrar datos históricos del juego seleccionado
+            df_juego_nlp = df_nlp[df_nlp['nombre'] == juego_seleccionado].copy()
+            # Obtener la fila más reciente (el último día registrado)
+            ultimo_registro = df_juego_nlp.iloc[-1]
             
-            ejecutar_scraping = st.button("🕷️ Iniciar Minería de Datos", type="primary", use_container_width=True)
-            
-        with col_scrap2:
-            if ejecutar_scraping:
-                with st.spinner(f'Navegando y extrayendo múltiples páginas de Steam para {juego_wordcloud}...'):
-                    try:
-                        # 1. EXTRACCIÓN MEJORADA (Paginación múltiple)
-                        appid = df_filtered[df_filtered['nombre'] == juego_wordcloud]['fk_juego'].iloc[0]
-                        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-                        
-                        textos_recolectados = []
-                        textos_para_sentimiento = []  
-                        total_resenas_extraidas = 0
-                        
-                        # Loop para minar las primeras 5 páginas (Aprox 50 reseñas)
-                        for pagina in range(1, 6):
-                            url = f"https://steamcommunity.com/app/{appid}/reviews/?browsefilter=mostrecent&paged={pagina}"
-                            respuesta = requests.get(url, headers=headers)
-                            soup = BeautifulSoup(respuesta.text, 'html.parser')
-                            
-                            bloques_texto = soup.find_all('div', class_='apphub_CardTextContent')
-                            if not bloques_texto:
-                                break  
-                                
-                            total_resenas_extraidas += len(bloques_texto)
-                            
-                            for bloque in bloques_texto:
-                                texto_bloque = bloque.text.replace("\n", "").strip()
-                                textos_recolectados.append(texto_bloque)
-                                textos_para_sentimiento.append(texto_bloque)  
-                            
-                        texto_bruto = " ".join(textos_recolectados)
-                        palabras_totales_brutas = len(texto_bruto.split())
-                        
-                        # 2. LIMPIEZA Y NORMALIZACIÓN (Pipeline NLP)
-                        texto_limpio = texto_bruto.replace("Early Access Review", "").replace("Posted", "")
-                        texto_limpio = texto_limpio.lower()
-                        texto_limpio = re.sub(r'[^a-z\s]', '', texto_limpio)
-                        texto_limpio = re.sub(r'\s+', ' ', texto_limpio).strip()
-                        
-                        if len(texto_limpio) > 50:
-                            # 3. FILTRADO DE STOPWORDS (Actualizado con meses)
-                            palabras_basura = set(STOPWORDS)
-                            palabras_basura.update([
-                                "game", "play", "playing", "player", "players", "gameplay",
-                                "really", "even", "much", "one", "make", "time", "hour", "hours", 
-                                "will", "feel", "never", "take", "get", "got", "just", "still",
-                                "review", "product", "ive", "pls", "yea", "yeah", "im", "dont", 
-                                "cant", "didnt", "buy", "bought", "money", "worth", "people",
-                                "january", "february", "march", "april", "may", "june", 
-                                "july", "august", "september", "october", "november", "december"
-                            ])
-
-                            # Generar Nube de Palabras
-                            wordcloud = WordCloud(
-                                width=900, 
-                                height=450, 
-                                background_color='#0a0e27', 
-                                colormap='cool', 
-                                max_words=80,
-                                stopwords=palabras_basura,
-                                contour_width=1,
-                                contour_color='#667eea'
-                            ).generate(texto_limpio)
-                            
-                            palabras_post_limpieza = len(wordcloud.words_)
-
-                            # ── ANÁLISIS DE SENTIMIENTO CON TEXTBLOB ─────────────────
-                            polaridades = []
-                            subjetividades = []
-                            for texto_resena in textos_para_sentimiento:
-                                blob = TextBlob(texto_resena)
-                                polaridades.append(blob.sentiment.polarity)
-                                subjetividades.append(blob.sentiment.subjectivity)
-
-                            polaridad_promedio = np.mean(polaridades) if polaridades else 0.0
-                            subjetividad_promedio = np.mean(subjetividades) if subjetividades else 0.0
-
-                            # Clasificar en Positivo / Neutral / Negativo
-                            if polaridad_promedio >= 0.1:
-                                sentimiento_label = "POSITIVO 😀"
-                                sentimiento_color = "#34d399"
-                            elif polaridad_promedio <= -0.1:
-                                sentimiento_label = "NEGATIVO 😞"
-                                sentimiento_color = "#f87171"
-                            else:
-                                sentimiento_label = "NEUTRAL 😐"
-                                sentimiento_color = "#fbbf24"
-
-                            # Conteo por categoría
-                            pos_count = sum(1 for p in polaridades if p >= 0.1)
-                            neg_count = sum(1 for p in polaridades if p <= -0.1)
-                            neu_count = len(polaridades) - pos_count - neg_count
-                            # ────────────────────────────────────────────────────────────────
-
-                            # 4. KPIs SUPERIORES
-                            st.markdown("### 🧠 Resultados del Análisis Semántico")
-                            
-                            kpi1, kpi2, kpi3 = st.columns(3)
-                            with kpi1:
-                                st.metric("Reseñas Analizadas", total_resenas_extraidas)
-                            with kpi2:
-                                st.metric("Palabras Extraídas (Bruto)", f"{palabras_totales_brutas:,}")
-                            with kpi3:
-                                st.metric("Términos Clave (Limpio)", f"{palabras_post_limpieza:,}")
-                                
-                            st.markdown("---")
-                            
-                            # 5. NUBE DE PALABRAS
-                            st.markdown("#### ☁️ Nube de Palabras")
-                            fig_wc, ax = plt.subplots(figsize=(12, 6), facecolor='#0a0e27')
-                            ax.imshow(wordcloud, interpolation='bilinear')
-                            ax.axis('off')
-                            plt.tight_layout(pad=0)
-                            st.pyplot(fig_wc)
-                            
-                            st.markdown("---")
-
-                            # ── MEDIDOR DE SENTIMIENTO ───────────────────────────────
-                            st.markdown("#### 🎭 Medidor de Sentimiento de la Comunidad")
-                            st.markdown(f"Análisis matemático basado en **{total_resenas_extraidas} reseñas reales** extraídas en este momento exacto de Steam.")
-
-                            # Convertimos polaridad de [-1,+1] a [0,100] para posicionar la aguja
-                            pct = (polaridad_promedio + 1) / 2 * 100
-
-                            col_gauge_sent, col_detalle_sent = st.columns([1.6, 1])
-
-                            with col_gauge_sent:
-                                # ── Tarjeta principal de veredicto ──────────────────────
-                                st.markdown(f"""
-                                <div style="
-                                    background: linear-gradient(135deg, rgba(15,20,40,0.95) 0%, rgba(26,31,58,0.9) 100%);
-                                    border: 2px solid {sentimiento_color};
-                                    border-radius: 20px;
-                                    padding: 1.8rem 2.5rem;
-                                    text-align: center;
-                                    box-shadow: 0 0 40px {sentimiento_color}33, inset 0 1px 0 rgba(255,255,255,0.05);
-                                    margin-bottom: 1.2rem;
-                                ">
-                                    <p style="margin:0; color:#94a3b8; font-size:0.78rem; text-transform:uppercase; letter-spacing:.12em; font-weight:600;">Veredicto TextBlob</p>
-                                    <p style="margin:0.3rem 0; font-size:2.6rem; font-weight:900; color:{sentimiento_color}; font-family:'Space Mono',monospace; text-shadow: 0 0 20px {sentimiento_color}88;">{sentimiento_label}</p>
-                                    <p style="margin:0; font-size:1rem; color:#e0e7ff; font-family:'Space Mono',monospace;">Polaridad: <strong style="color:{sentimiento_color};">{polaridad_promedio:+.3f}</strong></p>
-                                </div>
-                                """, unsafe_allow_html=True)
-
-                                # ── Barra horizontal con gradiente y aguja ──────────────
-                                st.markdown(f"""
-                                <div style="margin: 0.2rem 0 0 0;">
-                                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                                        <span style="color:#f87171; font-size:0.78rem; font-weight:700;">😞 NEGATIVO</span>
-                                        <span style="color:#fbbf24; font-size:0.78rem; font-weight:700;">😐 NEUTRAL</span>
-                                        <span style="color:#34d399; font-size:0.78rem; font-weight:700;">😀 POSITIVO</span>
-                                    </div>
-                                    <div style="position:relative; height:32px; border-radius:16px;
-                                        background: linear-gradient(to right,
-                                            #ef4444 0%, #f97316 20%, #fbbf24 42%, #fbbf24 58%, #84cc16 80%, #34d399 100%);
-                                        box-shadow: 0 2px 16px rgba(0,0,0,0.5); overflow:visible;">
-                                        <div style="
-                                            position:absolute;
-                                            left: calc({pct:.1f}% - 11px);
-                                            top: -14px;
-                                            width: 0; height: 0;
-                                            border-left: 11px solid transparent;
-                                            border-right: 11px solid transparent;
-                                            border-top: 18px solid white;
-                                            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.7));
-                                        "></div>
-                                        <div style="
-                                            position:absolute;
-                                            left: calc({pct:.1f}% - 2px);
-                                            top: 0; width: 4px; height: 32px;
-                                            background: rgba(255,255,255,0.9);
-                                            border-radius: 2px;
-                                            box-shadow: 0 0 10px rgba(255,255,255,0.8);
-                                        "></div>
-                                    </div>
-                                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                                        <span style="color:#475569; font-size:0.68rem; font-family:'Space Mono',monospace;">-1.0</span>
-                                        <span style="color:#475569; font-size:0.68rem; font-family:'Space Mono',monospace;">-0.5</span>
-                                        <span style="color:#475569; font-size:0.68rem; font-family:'Space Mono',monospace;">0</span>
-                                        <span style="color:#475569; font-size:0.68rem; font-family:'Space Mono',monospace;">+0.5</span>
-                                        <span style="color:#475569; font-size:0.68rem; font-family:'Space Mono',monospace;">+1.0</span>
-                                    </div>
-                                </div>
-                                """, unsafe_allow_html=True)
-
-                                # ── Barra apilada de distribución ───────────────────────
-                                total_r = max(pos_count + neu_count + neg_count, 1)
-                                pct_pos = pos_count / total_r * 100
-                                pct_neu = neu_count / total_r * 100
-                                pct_neg = neg_count / total_r * 100
-
-                                st.markdown(f"""
-                                <div style="margin-top:1.4rem;">
-                                    <p style="margin:0 0 0.5rem 0; color:#94a3b8; font-size:0.72rem; text-transform:uppercase; letter-spacing:.08em;">
-                                        Distribución de las {total_resenas_extraidas} reseñas
-                                    </p>
-                                    <div style="display:flex; height:22px; border-radius:11px; overflow:hidden; gap:2px;">
-                                        <div style="width:{pct_pos:.1f}%; background:#34d399; display:flex; align-items:center; justify-content:center;">
-                                            <span style="color:#064e3b; font-size:0.68rem; font-weight:800;">{pos_count}</span>
-                                        </div>
-                                        <div style="width:{pct_neu:.1f}%; background:#fbbf24; display:flex; align-items:center; justify-content:center;">
-                                            <span style="color:#78350f; font-size:0.68rem; font-weight:800;">{neu_count}</span>
-                                        </div>
-                                        <div style="width:{pct_neg:.1f}%; background:#f87171; display:flex; align-items:center; justify-content:center;">
-                                            <span style="color:#7f1d1d; font-size:0.68rem; font-weight:800;">{neg_count}</span>
-                                        </div>
-                                    </div>
-                                    <div style="display:flex; gap:1.4rem; margin-top:0.5rem;">
-                                        <span style="color:#34d399; font-size:0.72rem; font-weight:600;">● Positivas {pct_pos:.0f}%</span>
-                                        <span style="color:#fbbf24; font-size:0.72rem; font-weight:600;">● Neutrales {pct_neu:.0f}%</span>
-                                        <span style="color:#f87171; font-size:0.72rem; font-weight:600;">● Negativas {pct_neg:.0f}%</span>
-                                    </div>
-                                </div>
-                                """, unsafe_allow_html=True)
-
-                            with col_detalle_sent:
-                                st.markdown("##### 📐 Métricas Detalladas")
-
-                                st.markdown(f"""
-                                <div style="display:flex; flex-direction:column; gap:0.65rem; margin-top:0.4rem;">
-                                    <div style="padding:0.9rem 1.1rem; background:rgba(52,211,153,0.08); border:1.5px solid rgba(52,211,153,0.35); border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
-                                        <span style="color:#94a3b8; font-size:0.82rem;">✅ Positivas</span>
-                                        <span style="color:#34d399; font-weight:800; font-size:1.5rem; font-family:'Space Mono',monospace;">{pos_count}</span>
-                                    </div>
-                                    <div style="padding:0.9rem 1.1rem; background:rgba(251,191,36,0.08); border:1.5px solid rgba(251,191,36,0.35); border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
-                                        <span style="color:#94a3b8; font-size:0.82rem;">⚖️ Neutrales</span>
-                                        <span style="color:#fbbf24; font-weight:800; font-size:1.5rem; font-family:'Space Mono',monospace;">{neu_count}</span>
-                                    </div>
-                                    <div style="padding:0.9rem 1.1rem; background:rgba(248,113,113,0.08); border:1.5px solid rgba(248,113,113,0.35); border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
-                                        <span style="color:#94a3b8; font-size:0.82rem;">❌ Negativas</span>
-                                        <span style="color:#f87171; font-weight:800; font-size:1.5rem; font-family:'Space Mono',monospace;">{neg_count}</span>
-                                    </div>
-                                    <div style="padding:0.9rem 1.1rem; background:rgba(102,126,234,0.08); border:1.5px solid rgba(102,126,234,0.3); border-radius:12px;">
-                                        <p style="margin:0; color:#a5b4fc; font-size:0.7rem; text-transform:uppercase; letter-spacing:.06em;">Polaridad Promedio</p>
-                                        <p style="margin:0.1rem 0 0 0; color:#e0e7ff; font-weight:800; font-size:1.2rem; font-family:'Space Mono',monospace;">{polaridad_promedio:+.4f}</p>
-                                    </div>
-                                    <div style="padding:0.9rem 1.1rem; background:rgba(102,126,234,0.04); border:1.5px solid rgba(102,126,234,0.18); border-radius:12px;">
-                                        <p style="margin:0; color:#a5b4fc; font-size:0.7rem; text-transform:uppercase; letter-spacing:.06em;">Subjetividad Promedio</p>
-                                        <p style="margin:0.1rem 0 0 0; color:#e0e7ff; font-weight:800; font-size:1.2rem; font-family:'Space Mono',monospace;">{subjetividad_promedio:.3f}</p>
-                                        <p style="margin:0; color:#475569; font-size:0.7rem;">0 = objetivo · 1 = muy subjetivo</p>
-                                    </div>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            
-                        else:
-                            st.warning("⚠️ El texto extraído es demasiado corto para un análisis significativo después de la limpieza.")
-                            
-                    except ImportError:
-                        st.error("⚠️ Faltan librerías. Ejecuta: pip install beautifulsoup4 wordcloud matplotlib textblob")
-                    except Exception as e:
-                        st.error(f"❌ Error durante el pipeline NLP: {e}")
+            # KPI de Novedades del día
+            st.markdown("#### 📡 Contexto del Día")
+            if ultimo_registro['en_oferta'] == 1:
+                st.success("💰 El juego está en OFERTA")
             else:
-                st.info("👈 Selecciona un juego en el panel izquierdo y haz clic en 'Iniciar Minería de Datos' para comenzar el análisis.")
+                st.info("🏷️ Precio regular hoy")
+                
+            if ultimo_registro['hubo_actualizacion'] == 1:
+                st.warning("🛠️ Hubo un PARCHE/UPDATE hoy")
+            else:
+                st.markdown("<div style='padding: 1rem; border-radius: 8px; background: rgba(255,255,255,0.05);'>✅ Sin actualizaciones recientes</div>", unsafe_allow_html=True)
+                
+        with col_ctrl2:
+            st.markdown("### 🌡️ Termómetro de la Comunidad (Último Registro)")
+            
+            # Asignar colores según VADER
+            pol = ultimo_registro['polaridad_roberta']
+            if pol > 0.05:
+                color, icono, label = "#34d399", "😀", "POSITIVO"
+            elif pol < -0.05:
+                color, icono, label = "#f87171", "😡", "NEGATIVO"
+            else:
+                color, icono, label = "#fbbf24", "😐", "NEUTRAL"
+                
+            # Tarjetas Superiores
+            kpi_html = f"""
+            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <div style="flex: 1.5; background: linear-gradient(135deg, rgba(15,20,40,0.9) 0%, rgba(26,31,58,0.9) 100%); border: 2px solid {color}; border-radius: 16px; padding: 1.5rem; text-align: center; box-shadow: 0 0 20px {color}33;">
+                    <p style="margin:0; color:#94a3b8; font-size:0.8rem; text-transform:uppercase; font-weight:600;">Veredicto VADER</p>
+                    <p style="margin:0.5rem 0; font-size:2.2rem; font-weight:900; color:{color}; font-family:'Space Mono', monospace;">{icono} {label}</p>
+                    <p style="margin:0; color:#e0e7ff;">Polaridad Neta: <strong style="color:{color}">{pol:+.3f}</strong></p>
+                </div>
+                <div style="flex: 1; background: rgba(102, 126, 234, 0.1); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 16px; padding: 1.5rem; text-align: center;">
+                    <p style="margin:0; color:#a5b4fc; font-size:0.8rem; text-transform:uppercase; font-weight:600;">Tema Principal Hoy</p>
+                    <p style="margin:0.5rem 0; font-size:1.8rem; font-weight:800; color:#ffffff; font-family:'Space Mono', monospace; text-transform: uppercase;">"{ultimo_registro['tema_principal']}"</p>
+                </div>
+                <div style="flex: 1; background: rgba(102, 126, 234, 0.1); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 16px; padding: 1.5rem; text-align: center;">
+                    <p style="margin:0; color:#a5b4fc; font-size:0.8rem; text-transform:uppercase; font-weight:600;">Jugadores Activos</p>
+                    <p style="margin:0.5rem 0; font-size:1.8rem; font-weight:800; color:#ffffff; font-family:'Space Mono', monospace;">{ultimo_registro['jugadores_activos']:,}</p>
+                </div>
+            </div>
+            """
+            st.markdown(kpi_html, unsafe_allow_html=True)
+            
+        st.markdown("---")
+        
+        # Gráfica Histórica: Sentimiento vs Jugadores
+        st.markdown("### 📈 Evolución Histórica: Jugadores vs. Sentimiento")
+        
+        # Se requieren al menos 2 registros (fechas distintas) para trazar una línea, pero mostraremos puntos si solo hay 1.
+        fig_hist = make_subplots(specs=[[{"secondary_y": True}]])
+        
+        # Línea de Jugadores Activos (Eje Y principal - Izquierda)
+        fig_hist.add_trace(
+            go.Scatter(x=df_juego_nlp['fk_tiempo'], y=df_juego_nlp['jugadores_activos'], 
+                       name="Jugadores Activos", mode="lines+markers", line=dict(color="#a5b4fc", width=3), marker=dict(size=8)),
+            secondary_y=False,
+        )
+        
+        # Línea de Polaridad (Eje Y secundario - Derecha)
+        fig_hist.add_trace(
+            go.Scatter(x=df_juego_nlp['fk_tiempo'], y=df_juego_nlp['polaridad_roberta'], 
+                       name="Polaridad NLP (Sentimiento)", mode="lines+markers", fill='tozeroy', line=dict(color="#34d399", width=2), marker=dict(size=8)),
+            secondary_y=True,
+        )
+        
+        fig_hist.update_layout(
+            template="plotly_dark",
+            paper_bgcolor='rgba(15, 20, 40, 0.6)',
+            plot_bgcolor='rgba(0, 0, 0, 0.2)',
+            margin=dict(t=40, b=40, l=40, r=40),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        
+        fig_hist.update_yaxes(title_text="Cantidad de Jugadores", secondary_y=False, gridcolor='rgba(102, 126, 234, 0.1)')
+        fig_hist.update_yaxes(title_text="Índice de Polaridad (-1 a 1)", secondary_y=True, showgrid=False)
+        
+        # Asegurar que el eje X (fechas) se vea bien aunque haya pocos datos
+        fig_hist.update_xaxes(type='category') 
+
+        st.plotly_chart(fig_hist, use_container_width=True)
+            
     else:
-        st.info("💡 Ajusta los filtros en la barra lateral para ver juegos disponibles.")
+        st.warning("⚠️ No hay datos NLP almacenados en el Data Warehouse (tabla hechos_sentimiento). Ejecuta tu proceso Pentaho primero.")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # FOOTER
@@ -1440,7 +1283,7 @@ st.markdown("""
         <strong>Steam Analytics v4.0</strong> · Plataforma de Inteligencia de Mercado
     </p>
     <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem;">
-        Powered by Streamlit · PostgreSQL · Plotly · BeautifulSoup
+        Powered by Streamlit · PostgreSQL · Plotly · VADER
     </p>
 </div>
 """, unsafe_allow_html=True)
