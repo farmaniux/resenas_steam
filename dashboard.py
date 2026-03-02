@@ -1187,18 +1187,20 @@ with tab4:
             # Obtener la fila más reciente (el último día registrado)
             ultimo_registro = df_juego_nlp.iloc[-1]
             
-            # KPI de Novedades del día
+           # KPI de Novedades del día
             st.markdown("#### 📡 Contexto del Día")
+            
+            # Bloque 1: Verificamos si hay oferta
             if ultimo_registro['en_oferta'] == 1:
-                st.success("💰 El juego está en OFERTA")
+                st.success("💰 ¡Descuento Activo en la Tienda!")
             else:
-                st.info("🏷️ Precio regular hoy")
+                st.info("🎮 Free-to-Play / Sin descuentos hoy")
                 
+            # Bloque 2: Verificamos si hubo un parche o actualización
             if ultimo_registro['hubo_actualizacion'] == 1:
                 st.warning("🛠️ Hubo un PARCHE/UPDATE hoy")
             else:
                 st.markdown("<div style='padding: 1rem; border-radius: 8px; background: rgba(255,255,255,0.05);'>✅ Sin actualizaciones recientes</div>", unsafe_allow_html=True)
-                
         with col_ctrl2:
             st.markdown("### 🌡️ Termómetro de la Comunidad (Último Registro)")
             
