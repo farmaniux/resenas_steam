@@ -819,24 +819,29 @@ with tab1:
 
         col_bench, col_heat = st.columns(2)
 
-        # 2. HERRAMIENTA DE BENCHMARKING (RADAR CHART 1 VS 1)
-        with col_bench:
-            st.markdown("### ⚔️ Benchmarking: 1 vs 1")
+       st.markdown("---")
+        st.markdown("### ⚔️ Benchmarking Directo: Frente a Frente")
 
-            juegos_disponibles = df_filtered['nombre'].dropna().unique()
-            if len(juegos_disponibles) >= 2:
-                g1, g2 = st.columns(2)
-                with g1: juego1 = st.selectbox("Juego A", juegos_disponibles, index=0)
-                with g2: juego2 = st.selectbox("Juego B", juegos_disponibles, index=1)
+        juegos_disponibles = df_filtered['nombre'].dropna().unique()
+        if len(juegos_disponibles) >= 2:
+            # Selectores de juegos
+            col_sel1, col_sel2 = st.columns(2)
+            with col_sel1: juego1 = st.selectbox("🥊 Juego A (Retador)", juegos_disponibles, index=0)
+            with col_sel2: juego2 = st.selectbox("🛡️ Juego B (Oponente)", juegos_disponibles, index=1 if len(juegos_disponibles)>1 else 0)
 
-                data_j1 = df_filtered[df_filtered['nombre'] == juego1].iloc[0]
-                data_j2 = df_filtered[df_filtered['nombre'] == juego2].iloc[0]
+            # Extraer datos de los juegos seleccionados
+            data_j1 = df_filtered[df_filtered['nombre'] == juego1].iloc[0]
+            data_j2 = df_filtered[df_filtered['nombre'] == juego2].iloc[0]
 
+            col_radar, col_barras = st.columns(2)
+
+            # GRÁFICO 1: EL RADAR (PERFIL)
+            with col_radar:
+                st.markdown("#### 🕸️ Perfil de Rendimiento")
                 metricas = ['ratio_positividad', 'cantidad_descargas', 'monto_ventas_usd', 'conteo_resenas']
-                nombres_metricas = ['Positividad', 'Descargas', 'Ventas USD', 'Popularidad']
+                nombres_metricas = ['Satisfacción', 'Descargas', 'Ventas ($)', 'Popularidad']
 
-                vals_j1 = []
-                vals_j2 = []
+                vals_j1, vals_j2 = [], []
                 for m in metricas:
                     val1 = float(data_j1[m]) if pd.notna(data_j1[m]) else 0.0
                     val2 = float(data_j2[m]) if pd.notna(data_j2[m]) else 0.0
@@ -846,54 +851,51 @@ with tab1:
                     vals_j2.append((val2 / max_val) * 100)
 
                 fig_radar = go.Figure()
-                fig_radar.add_trace(go.Scatterpolar(
-                    r=vals_j1, theta=nombres_metricas, fill='toself', name=juego1, line_color='#667eea'
-                ))
-                fig_radar.add_trace(go.Scatterpolar(
-                    r=vals_j2, theta=nombres_metricas, fill='toself', name=juego2, line_color='#f093fb'
-                ))
+                fig_radar.add_trace(go.Scatterpolar(r=vals_j1, theta=nombres_metricas, fill='toself', name=juego1, line_color='#667eea'))
+                fig_radar.add_trace(go.Scatterpolar(r=vals_j2, theta=nombres_metricas, fill='toself', name=juego2, line_color='#f093fb'))
 
                 fig_radar.update_layout(
-                    template="plotly_dark",
-                    paper_bgcolor='rgba(15, 20, 40, 0.6)',
-                    polar=dict(
-                        radialaxis=dict(visible=True, range=[0, 100], showticklabels=False),
-                        bgcolor='rgba(0,0,0,0.2)'
-                    ),
-                    margin=dict(t=30, b=30, l=30, r=30),
+                    template="plotly_dark", paper_bgcolor='rgba(15, 20, 40, 0.6)',
+                    polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0.2)'),
+                    margin=dict(t=20, b=20, l=30, r=30),
                     legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
                 )
                 st.plotly_chart(fig_radar, use_container_width=True)
-            else:
-                st.info("Necesitas al menos 2 juegos filtrados para comparar.")
 
-        # 3. MATRIZ DE CORRELACIÓN (HEATMAP)
-        with col_heat:
-            st.markdown("### 🌡️ Matriz de Correlación")
-
-            cols_corr = ['votos_positivos', 'votos_negativos', 'monto_ventas_usd', 'cantidad_descargas', 'ratio_positividad']
-            nombres_amigables = ['Positivos', 'Negativos', 'Ventas ($)', 'Descargas', 'Ratio +']
-
-            if len(df_filtered) > 2:
-                cols_validas = [c for c in cols_corr if c in df_filtered.columns]
-                corr_matrix = df_filtered[cols_validas].corr(numeric_only=True)
-
-                fig_corr = px.imshow(
-                    corr_matrix,
-                    x=nombres_amigables[:len(cols_validas)],
-                    y=nombres_amigables[:len(cols_validas)],
-                    color_continuous_scale='Purples',
-                    template="plotly_dark",
-                    text_auto=".2f",
-                    aspect="auto"
+            # GRÁFICO 2: BARRAS AGRUPADAS (LA NUEVA COMPARATIVA)
+            with col_barras:
+                st.markdown("#### 📊 Comparativa de Volumen Neto")
+                
+                # Preparamos los datos para las barras
+                comp_df = pd.DataFrame({
+                    'Juego': [juego1, juego2, juego1, juego2],
+                    'Métrica': ['Descargas', 'Descargas', 'Reseñas', 'Reseñas'],
+                    'Valor': [data_j1['cantidad_descargas'], data_j2['cantidad_descargas'], data_j1['conteo_resenas'], data_j2['conteo_resenas']]
+                })
+                
+                fig_barras = px.bar(
+                    comp_df, x='Métrica', y='Valor', color='Juego', barmode='group',
+                    text_auto='.2s',
+                    color_discrete_sequence=['#667eea', '#f093fb'],
+                    template="plotly_dark"
                 )
-                fig_corr.update_layout(
-                    paper_bgcolor='rgba(15, 20, 40, 0.6)',
-                    margin=dict(t=30, b=30, l=30, r=30)
+                fig_barras.update_layout(
+                    paper_bgcolor='rgba(15, 20, 40, 0.6)', plot_bgcolor='rgba(0,0,0,0.2)',
+                    margin=dict(t=20, b=20, l=10, r=10),
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
                 )
-                st.plotly_chart(fig_corr, use_container_width=True)
-            else:
-                st.warning("Se requieren más datos para calcular correlaciones estadísticas.")
+                st.plotly_chart(fig_barras, use_container_width=True)
+                
+                # Resumen Ejecutivo Financiero
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; border-left: 4px solid #34d399; margin-top: 10px;">
+                    <p style="margin:0; font-size: 0.9rem;"><strong>🏆 Resumen Financiero:</strong></p>
+                    <p style="margin:0; font-size: 0.85rem; color: #c7d2fe;">{juego1}: <strong>${data_j1['monto_ventas_usd']:,.0f}</strong> ({data_j1['ratio_positividad']:.0%} Positivo)</p>
+                    <p style="margin:0; font-size: 0.85rem; color: #f093fb;">{juego2}: <strong>${data_j2['monto_ventas_usd']:,.0f}</strong> ({data_j2['ratio_positividad']:.0%} Positivo)</p>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("⚠️ Necesitas al menos 2 juegos filtrados para usar la herramienta de Benchmarking.")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TAB 2: SIMULADOR DE ESCENARIOS (Riesgo y Segmentación)
