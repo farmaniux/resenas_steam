@@ -335,90 +335,156 @@ def generar_pdf(df_filtered, ventas, descargas, ratio, juegos_count):
     pdf = FPDF()
     pdf.add_page()
     
-    # 1. Cabecera Corporativa (Fondo Azul Oscuro)
-    pdf.set_fill_color(26, 31, 58) # Color institucional
-    pdf.rect(0, 0, 210, 30, 'F')
-    pdf.set_y(10)
-    pdf.set_font("Arial", 'B', 20)
+    # 1. Cabecera Corporativa Premium (Fondo oscuro)
+    pdf.set_fill_color(15, 20, 40) # Azul muy oscuro
+    pdf.rect(0, 0, 210, 35, 'F')
+    
+    pdf.set_y(12)
+    pdf.set_font("Arial", 'B', 22)
     pdf.set_text_color(255, 255, 255)
-    pdf.cell(0, 10, txt="STEAM ANALYTICS BI - REPORTE EJECUTIVO", ln=True, align='C')
+    pdf.cell(0, 10, txt="STEAM ANALYTICS BI", ln=True, align='C')
+    
+    pdf.set_font("Arial", '', 12)
+    pdf.set_text_color(165, 180, 252) # Color acento claro
+    pdf.cell(0, 8, txt="Reporte Ejecutivo de Inteligencia de Mercado", ln=True, align='C')
     
     # Fecha de generación
-    pdf.set_y(35)
+    pdf.set_y(40)
     pdf.set_font("Arial", 'I', 10)
-    pdf.set_text_color(100, 100, 100)
+    pdf.set_text_color(120, 120, 120)
     fecha_actual = datetime.now().strftime("%d/%m/%Y %H:%M")
     pdf.cell(0, 10, txt=f"Generado el: {fecha_actual}", ln=True, align='R')
     pdf.ln(5)
     
-    # 2. Resumen de KPIs (Cajas con fondo suave)
+    # 2. Resumen de KPIs (Estilo Tarjetas Modernas)
     pdf.set_font("Arial", 'B', 14)
     pdf.set_text_color(26, 31, 58)
-    pdf.cell(0, 10, txt="1. Resumen de Mercado (KPIs)", ln=True)
-    pdf.set_font("Arial", '', 12)
-    pdf.set_text_color(50, 50, 50)
-    
-    # Imprimir KPIs simulando un grid
-    pdf.cell(95, 10, txt=f"Ventas Totales: {format_number(ventas)}", border=1, ln=0, align='C')
-    pdf.cell(95, 10, txt=f"Descargas Est.: {format_count(descargas)}", border=1, ln=1, align='C')
-    pdf.cell(95, 10, txt=f"Indice de Satisfaccion: {ratio*100:.1f}%", border=1, ln=0, align='C')
-    pdf.cell(95, 10, txt=f"Juegos Analizados: {juegos_count}", border=1, ln=1, align='C')
-    pdf.ln(10)
-    
-    # 3. Generación e Inyección de Gráfico (Top 5 Juegos)
-    pdf.set_font("Arial", 'B', 14)
-    pdf.set_text_color(26, 31, 58)
-    pdf.cell(0, 10, txt="2. Top 5 Juegos mas Rentables", ln=True)
+    pdf.cell(0, 10, txt="1. Resumen de Mercado (KPIs Globales)", ln=True)
     pdf.ln(5)
     
+    # Función interna para dibujar tarjetas KPI
+    def draw_kpi_card(x, y, title, value, color_r, color_g, color_b):
+        # Fondo de la tarjeta (gris súper claro)
+        pdf.set_fill_color(245, 247, 250)
+        pdf.rect(x, y, 90, 22, 'F')
+        # Línea decorativa izquierda (Acento de color)
+        pdf.set_fill_color(color_r, color_g, color_b)
+        pdf.rect(x, y, 3, 22, 'F')
+        
+        # Textos
+        pdf.set_xy(x + 5, y + 3)
+        pdf.set_font("Arial", 'B', 10)
+        pdf.set_text_color(100, 100, 100)
+        pdf.cell(80, 5, txt=title.upper(), ln=True)
+        
+        pdf.set_xy(x + 5, y + 9)
+        pdf.set_font("Arial", 'B', 16)
+        pdf.set_text_color(30, 30, 30)
+        pdf.cell(80, 10, txt=str(value), ln=True)
+
+    # Dibujar las 4 tarjetas en cuadrícula
+    y_kpi = pdf.get_y()
+    draw_kpi_card(10, y_kpi, "Ventas Totales Est.", format_number(ventas), 102, 126, 234) # Azul
+    draw_kpi_card(110, y_kpi, "Descargas Est.", format_count(descargas), 118, 75, 162) # Morado
+    
+    draw_kpi_card(10, y_kpi + 26, "Indice de Satisfaccion", f"{ratio*100:.1f}%", 52, 211, 153) # Verde
+    draw_kpi_card(110, y_kpi + 26, "Juegos Analizados", str(juegos_count), 248, 113, 113) # Rojo
+    
+    pdf.set_y(y_kpi + 55)
+    
+    # 3. Generación e Inyección de Gráfico Premium
+    pdf.set_font("Arial", 'B', 14)
+    pdf.set_text_color(26, 31, 58)
+    pdf.cell(0, 10, txt="2. Rendimiento Financiero: Top Juegos", ln=True)
+    pdf.ln(2)
+    
     if not df_filtered.empty:
-        # Preparar datos para el gráfico
         top5 = df_filtered.nlargest(5, 'monto_ventas_usd').sort_values('monto_ventas_usd', ascending=True)
         
-        # Crear gráfico con Matplotlib
-        fig, ax = plt.subplots(figsize=(8, 4))
-        ax.barh(top5['nombre'], top5['monto_ventas_usd'], color='#667eea')
-        ax.set_xlabel('Ingresos (USD)')
-        ax.set_title('Ingresos Generados por Titulo')
+        # Crear gráfico VIP con Matplotlib
+        fig, ax = plt.subplots(figsize=(9, 3.5), facecolor='white')
+        ax.set_facecolor('white')
+        
+        # Paleta de colores elegante (degradado visual)
+        colors = ['#c7d2fe', '#a5b4fc', '#818cf8', '#6366f1', '#4f46e5']
+        bars = ax.barh(top5['nombre'], top5['monto_ventas_usd'], color=colors[-len(top5):], height=0.6)
+        
+        # Limpiar bordes FEOS para look moderno
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_color('#e2e8f0')
+        ax.xaxis.set_visible(False) # Ocultar notación científica (eje X)
+        ax.tick_params(axis='y', length=0, labelsize=11, colors='#334155')
+        
+        # Añadir etiquetas de datos DIRECTAMENTE al lado de la barra
+        for bar in bars:
+            width = bar.get_width()
+            label_x_pos = width + (max(top5['monto_ventas_usd']) * 0.02)
+            # Usa tu función format_number para que se vea como $177.8B
+            texto_valor = format_number(width) 
+            ax.text(label_x_pos, bar.get_y() + bar.get_height()/2, 
+                    texto_valor, 
+                    va='center', ha='left', fontsize=11, color='#1e293b', fontweight='bold')
+        
         plt.tight_layout()
         
-        # Guardar en archivo temporal
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-            fig.savefig(tmpfile.name, dpi=150, bbox_inches='tight')
+            fig.savefig(tmpfile.name, dpi=200, bbox_inches='tight') # Mayor resolución
             tmpfile_path = tmpfile.name
         plt.close(fig)
         
-        # Insertar imagen en PDF y centrarla
-        pdf.image(tmpfile_path, x=25, w=160)
-        os.unlink(tmpfile_path) # Eliminar archivo temporal
+        # Insertar imagen en el PDF
+        pdf.image(tmpfile_path, x=15, w=180)
+        os.unlink(tmpfile_path)
+        
+    pdf.ln(75) # Espacio después de la imagen
     
-    pdf.ln(10)
-    
-    # 4. Recomendación Estratégica Dinámica
+    # 4. Recomendación Estratégica en Caja de Alerta Semántica
     pdf.set_font("Arial", 'B', 14)
     pdf.set_text_color(26, 31, 58)
-    pdf.cell(0, 10, txt="3. Recomendacion Estrategica Algoritmica", ln=True)
-    pdf.set_font("Arial", '', 12)
-    pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 10, txt="3. Veredicto Estrategico del Modelo Analitico", ln=True)
+    pdf.ln(2)
     
-    # Lógica condicional premium
-    if ratio >= 0.85:
-        recomendacion = "ALTA VIABILIDAD: El mercado actual presenta un indice de satisfaccion excelente. Se recomienda aprobar presupuestos para desarrollo en estos subgeneros, priorizando la traccion (volumen de reseñas)."
-    elif ratio >= 0.70:
-        recomendacion = "RIESGO MODERADO: El mercado es estable pero competitivo. Es vital invertir en campañas de marketing agresivas para asegurar la visibilidad del titulo durante el primer trimestre de lanzamiento."
+    # Lógica de colores según el éxito
+    if ratio >= 0.80:
+        rec_title = "ESTADO: ALTA VIABILIDAD (FAVORABLE)"
+        rec_body = "El mercado actual presenta un indice de satisfaccion excelente. Se recomienda aprobar presupuestos para desarrollo y expansion en estos subgeneros. Priorizar la visibilidad organica."
+        r_fill, g_fill, b_fill = 236, 253, 245 # Verde muy claro
+        r_text, g_text, b_text = 6, 95, 70 # Verde oscuro
+    elif ratio >= 0.65:
+        rec_title = "ESTADO: RIESGO MODERADO (ESTABLE)"
+        rec_body = "El mercado es estable pero altamente competitivo. Es vital invertir en campañas de marketing agresivas y analizar de cerca las quejas recurrentes para asegurar la retencion a largo plazo."
+        r_fill, g_fill, b_fill = 255, 251, 235 # Amarillo muy claro
+        r_text, g_text, b_text = 146, 64, 14 # Naranja oscuro
     else:
-        recomendacion = "ALTO RIESGO: La comunidad muestra insatisfaccion general. Se sugiere realizar un analisis profundo de NLP (bugs, hackers, rendimiento) antes de comprometer capital en estos nichos."
+        rec_title = "ESTADO: ALTO RIESGO (CRITICO)"
+        rec_body = "La comunidad muestra una insatisfaccion generalizada. Se sugiere paralizar inversiones fuertes y realizar un analisis profundo de NLP (bugs, rendimiento) antes de comprometer capital en estos nichos."
+        r_fill, g_fill, b_fill = 254, 242, 242 # Rojo muy claro
+        r_text, g_text, b_text = 153, 27, 27 # Rojo oscuro
         
-    pdf.multi_cell(0, 8, txt=recomendacion)
+    # Dibujar caja de alerta
+    y_rec = pdf.get_y()
+    pdf.set_fill_color(r_fill, g_fill, b_fill)
+    pdf.rect(10, y_rec, 190, 22, 'F')
+    
+    pdf.set_xy(15, y_rec + 3)
+    pdf.set_font("Arial", 'B', 11)
+    pdf.set_text_color(r_text, g_text, b_text)
+    pdf.cell(0, 6, txt=rec_title, ln=True)
+    
+    pdf.set_xy(15, y_rec + 9)
+    pdf.set_font("Arial", '', 10)
+    pdf.set_text_color(50, 50, 50)
+    pdf.multi_cell(180, 5, txt=rec_body)
     
     # 5. Pie de página
     pdf.set_y(-20)
     pdf.set_font("Arial", 'I', 8)
     pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 10, txt="Confidencial - Propiedad de la Gerencia de Inteligencia de Negocios", align='C')
+    pdf.cell(0, 10, txt="Generado por Steam Analytics BI v4.0 - Documento Confidencial", align='C')
     
     return pdf.output(dest="S").encode("latin1")
-
 # ═══════════════════════════════════════════════════════════════════════════
 # CONEXIÓN A BASE DE DATOS MODIFICADA
 # ═══════════════════════════════════════════════════════════════════════════
