@@ -12,6 +12,9 @@ from sqlalchemy import create_engine
 from wordcloud import WordCloud, STOPWORDS
 from textblob import TextBlob  
 from sklearn.ensemble import RandomForestRegressor
+import os
+import tempfile
+from datetime import datetime
 
 try:
     from fpdf import FPDF
@@ -303,7 +306,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# FUNCIONES UTILITARIAS
+# FUNCIONES UTILITARIAS Y GENERACIÓN DE PDF PREMIUM
 # ═══════════════════════════════════════════════════════════════════════════
 
 def format_number(num):
@@ -328,27 +331,91 @@ def format_count(num):
         return f"{num / 1e3:.2f}K"
     return f"{num:,.0f}"
 
-def generar_pdf(ventas, descargas, ratio, juegos_count):
+def generar_pdf(df_filtered, ventas, descargas, ratio, juegos_count):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, txt="Reporte Ejecutivo - Steam Analytics BI", ln=True, align='C')
+    
+    # 1. Cabecera Corporativa (Fondo Azul Oscuro)
+    pdf.set_fill_color(26, 31, 58) # Color institucional
+    pdf.rect(0, 0, 210, 30, 'F')
+    pdf.set_y(10)
+    pdf.set_font("Arial", 'B', 20)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(0, 10, txt="STEAM ANALYTICS BI - REPORTE EJECUTIVO", ln=True, align='C')
+    
+    # Fecha de generación
+    pdf.set_y(35)
+    pdf.set_font("Arial", 'I', 10)
+    pdf.set_text_color(100, 100, 100)
+    fecha_actual = datetime.now().strftime("%d/%m/%Y %H:%M")
+    pdf.cell(0, 10, txt=f"Generado el: {fecha_actual}", ln=True, align='R')
+    pdf.ln(5)
+    
+    # 2. Resumen de KPIs (Cajas con fondo suave)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.set_text_color(26, 31, 58)
+    pdf.cell(0, 10, txt="1. Resumen de Mercado (KPIs)", ln=True)
+    pdf.set_font("Arial", '', 12)
+    pdf.set_text_color(50, 50, 50)
+    
+    # Imprimir KPIs simulando un grid
+    pdf.cell(95, 10, txt=f"Ventas Totales: {format_number(ventas)}", border=1, ln=0, align='C')
+    pdf.cell(95, 10, txt=f"Descargas Est.: {format_count(descargas)}", border=1, ln=1, align='C')
+    pdf.cell(95, 10, txt=f"Indice de Satisfaccion: {ratio*100:.1f}%", border=1, ln=0, align='C')
+    pdf.cell(95, 10, txt=f"Juegos Analizados: {juegos_count}", border=1, ln=1, align='C')
     pdf.ln(10)
     
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(200, 10, txt="Resumen de KPIs de Mercado:", ln=True)
-    pdf.set_font("Arial", '', 12)
-    pdf.cell(200, 10, txt=f"- Ventas Totales Estimadas: {format_number(ventas)}", ln=True)
-    pdf.cell(200, 10, txt=f"- Descargas Totales: {format_count(descargas)}", ln=True)
-    pdf.cell(200, 10, txt=f"- Indice de Satisfaccion: {ratio*100:.1f}%", ln=True)
-    pdf.cell(200, 10, txt=f"- Juegos Analizados: {juegos_count}", ln=True)
+    # 3. Generación e Inyección de Gráfico (Top 5 Juegos)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.set_text_color(26, 31, 58)
+    pdf.cell(0, 10, txt="2. Top 5 Juegos mas Rentables", ln=True)
+    pdf.ln(5)
+    
+    if not df_filtered.empty:
+        # Preparar datos para el gráfico
+        top5 = df_filtered.nlargest(5, 'monto_ventas_usd').sort_values('monto_ventas_usd', ascending=True)
+        
+        # Crear gráfico con Matplotlib
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.barh(top5['nombre'], top5['monto_ventas_usd'], color='#667eea')
+        ax.set_xlabel('Ingresos (USD)')
+        ax.set_title('Ingresos Generados por Titulo')
+        plt.tight_layout()
+        
+        # Guardar en archivo temporal
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
+            fig.savefig(tmpfile.name, dpi=150, bbox_inches='tight')
+            tmpfile_path = tmpfile.name
+        plt.close(fig)
+        
+        # Insertar imagen en PDF y centrarla
+        pdf.image(tmpfile_path, x=25, w=160)
+        os.unlink(tmpfile_path) # Eliminar archivo temporal
+    
     pdf.ln(10)
     
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(200, 10, txt="Recomendacion Estrategica:", ln=True)
+    # 4. Recomendación Estratégica Dinámica
+    pdf.set_font("Arial", 'B', 14)
+    pdf.set_text_color(26, 31, 58)
+    pdf.cell(0, 10, txt="3. Recomendacion Estrategica Algoritmica", ln=True)
     pdf.set_font("Arial", '', 12)
-    recomendacion = "Considerar inversion en generos con ratio mayor al 80%." if ratio >= 0.8 else "Mercado altamente competitivo, requiere analisis de sentimiento profundo."
-    pdf.multi_cell(0, 10, txt=recomendacion)
+    pdf.set_text_color(0, 0, 0)
+    
+    # Lógica condicional premium
+    if ratio >= 0.85:
+        recomendacion = "ALTA VIABILIDAD: El mercado actual presenta un indice de satisfaccion excelente. Se recomienda aprobar presupuestos para desarrollo en estos subgeneros, priorizando la traccion (volumen de reseñas)."
+    elif ratio >= 0.70:
+        recomendacion = "RIESGO MODERADO: El mercado es estable pero competitivo. Es vital invertir en campañas de marketing agresivas para asegurar la visibilidad del titulo durante el primer trimestre de lanzamiento."
+    else:
+        recomendacion = "ALTO RIESGO: La comunidad muestra insatisfaccion general. Se sugiere realizar un analisis profundo de NLP (bugs, hackers, rendimiento) antes de comprometer capital en estos nichos."
+        
+    pdf.multi_cell(0, 8, txt=recomendacion)
+    
+    # 5. Pie de página
+    pdf.set_y(-20)
+    pdf.set_font("Arial", 'I', 8)
+    pdf.set_text_color(150, 150, 150)
+    pdf.cell(0, 10, txt="Confidencial - Propiedad de la Gerencia de Inteligencia de Negocios", align='C')
     
     return pdf.output(dest="S").encode("latin1")
 
@@ -486,11 +553,11 @@ with st.sidebar:
         r_prom = df_filtered['ratio_positividad'].mean()
         j_tot = len(df_filtered)
         
-        pdf_bytes = generar_pdf(v_tot, d_tot, r_prom, j_tot)
+        pdf_bytes = generar_pdf(df_filtered, v_tot, d_tot, r_prom, j_tot)
         st.download_button(
             label="📥 Descargar Reporte Ejecutivo (PDF)",
             data=pdf_bytes,
-            file_name="Reporte_Steam_BI.pdf",
+            file_name="Reporte_Gerencial_Steam_BI.pdf",
             mime="application/pdf",
             type="primary",
             use_container_width=True
