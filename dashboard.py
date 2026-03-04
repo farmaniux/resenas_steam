@@ -496,7 +496,7 @@ def generar_pdf(df_filtered, ventas, descargas, ratio, juegos_count):
     pdf.set_text_color(150, 150, 150)
     pdf.cell(0, 10, txt="Generado por Steam Analytics BI v4.0 - Documento Confidencial", align='C')
     
-    return pdf.output(dest="S").encode("latin1")
+    return bytes(pdf.output())
 # ═══════════════════════════════════════════════════════════════════════════
 # CONEXIÓN A BASE DE DATOS MODIFICADA
 # ═══════════════════════════════════════════════════════════════════════════
