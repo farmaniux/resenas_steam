@@ -357,13 +357,12 @@ def generar_pdf(df_filtered, ventas, descargas, ratio, juegos_count):
     pdf.cell(0, 10, txt=f"Generado el: {fecha_actual}", ln=True, align='R')
     pdf.ln(5)
     
-    # 2. Resumen de KPIs (Estilo Tarjetas Modernas)
+    # 2. Resumen de KPIs
     pdf.set_font("Arial", 'B', 14)
     pdf.set_text_color(26, 31, 58)
     pdf.cell(0, 10, txt="1. Resumen de Mercado (KPIs Globales)", ln=True)
     pdf.ln(5)
     
-    # Función interna para dibujar tarjetas KPI
     def draw_kpi_card(x, y, title, value, color_r, color_g, color_b):
         pdf.set_fill_color(245, 247, 250)
         pdf.rect(x, y, 90, 22, 'F')
@@ -389,65 +388,12 @@ def generar_pdf(df_filtered, ventas, descargas, ratio, juegos_count):
     
     pdf.set_y(y_kpi + 55)
     
-    # 3. TABLA DE DATOS ESTADÍSTICOS (Reemplazo del gráfico)
+    # 3. Recomendación Estratégica (Movida ARRIBA de la tabla larga)
     pdf.set_font("Arial", 'B', 14)
     pdf.set_text_color(26, 31, 58)
-    pdf.cell(0, 10, txt="2. Rendimiento Financiero: Top 5 Juegos", ln=True)
+    pdf.cell(0, 10, txt="2. Veredicto Estrategico del Modelo Analitico", ln=True)
     pdf.ln(2)
     
-    if not df_filtered.empty:
-        # Ordenar los mejores 5
-        top5 = df_filtered.nlargest(5, 'monto_ventas_usd').sort_values('monto_ventas_usd', ascending=False)
-        
-        # Cabecera de la tabla
-        pdf.set_fill_color(102, 126, 234) # Azul institucional
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_font("Arial", 'B', 10)
-        
-        # Anchos de columna (Total = 190)
-        w_nombre, w_ventas, w_descargas, w_ratio = 85, 40, 35, 30
-        
-        pdf.cell(w_nombre, 8, txt='Titulo del Juego', border=1, align='C', fill=True)
-        pdf.cell(w_ventas, 8, txt='Ventas Est.', border=1, align='C', fill=True)
-        pdf.cell(w_descargas, 8, txt='Descargas', border=1, align='C', fill=True)
-        pdf.cell(w_ratio, 8, txt='Satisfaccion', border=1, ln=True, align='C', fill=True)
-        
-        # Filas de datos (Zebra striping)
-        pdf.set_font("Arial", '', 10)
-        fill = False
-        for index, row in top5.iterrows():
-            if fill:
-                pdf.set_fill_color(245, 247, 250) # Gris muy claro
-            else:
-                pdf.set_fill_color(255, 255, 255) # Blanco
-                
-            pdf.set_text_color(50, 50, 50)
-            
-            # Formatear datos y truncar nombre si es muy largo
-            nombre = str(row['nombre'])
-            if len(nombre) > 42:
-                nombre = nombre[:39] + "..."
-                
-            ventas_str = format_number(row['monto_ventas_usd'])
-            descargas_str = format_count(row['cantidad_descargas'])
-            ratio_str = f"{row['ratio_positividad']*100:.1f}%"
-            
-            pdf.cell(w_nombre, 8, txt=" " + nombre, border=1, align='L', fill=fill)
-            pdf.cell(w_ventas, 8, txt=ventas_str, border=1, align='C', fill=fill)
-            pdf.cell(w_descargas, 8, txt=descargas_str, border=1, align='C', fill=fill)
-            pdf.cell(w_ratio, 8, txt=ratio_str, border=1, ln=True, align='C', fill=fill)
-            
-            fill = not fill # Alternar color de fondo
-            
-    pdf.ln(10) # Espacio después de la tabla
-    
-    # 4. Recomendación Estratégica en Caja de Alerta Semántica
-    pdf.set_font("Arial", 'B', 14)
-    pdf.set_text_color(26, 31, 58)
-    pdf.cell(0, 10, txt="3. Veredicto Estrategico del Modelo Analitico", ln=True)
-    pdf.ln(2)
-    
-    # Lógica de colores según el éxito
     if ratio >= 0.80:
         rec_title = "ESTADO: ALTA VIABILIDAD (FAVORABLE)"
         rec_body = "El mercado actual presenta un indice de satisfaccion excelente. Se recomienda aprobar presupuestos para desarrollo y expansion en estos subgeneros. Priorizar la visibilidad organica."
@@ -478,8 +424,74 @@ def generar_pdf(df_filtered, ventas, descargas, ratio, juegos_count):
     pdf.set_text_color(50, 50, 50)
     pdf.multi_cell(180, 5, txt=rec_body)
     
-    # 5. Pie de página
-    pdf.set_y(-20)
+    pdf.ln(10)
+    
+    # 4. TABLA DETALLADA DE TODOS LOS JUEGOS (El motor FPDF creará páginas nuevas automáticamente)
+    pdf.set_font("Arial", 'B', 14)
+    pdf.set_text_color(26, 31, 58)
+    pdf.cell(0, 10, txt="3. Anexo: Rendimiento Financiero por Titulo", ln=True)
+    pdf.ln(2)
+    
+    if not df_filtered.empty:
+        # Agrupar por juego (para sumar ventas históricas y no repetir juegos)
+        df_agrupado = df_filtered.groupby('nombre').agg({
+            'monto_ventas_usd': 'sum',
+            'cantidad_descargas': 'sum',
+            'ratio_positividad': 'mean'
+        }).reset_index().sort_values('monto_ventas_usd', ascending=False)
+        
+        # Cabecera de la tabla
+        pdf.set_fill_color(102, 126, 234) # Azul
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font("Arial", 'B', 9)
+        
+        # Anchos = 190 total
+        w_nombre, w_ventas, w_descargas, w_ratio, w_sent = 70, 35, 30, 25, 30
+        
+        pdf.cell(w_nombre, 8, txt='Titulo del Juego', border=1, align='C', fill=True)
+        pdf.cell(w_ventas, 8, txt='Ventas Est.', border=1, align='C', fill=True)
+        pdf.cell(w_descargas, 8, txt='Descargas', border=1, align='C', fill=True)
+        pdf.cell(w_ratio, 8, txt='Satisfaccion', border=1, align='C', fill=True)
+        pdf.cell(w_sent, 8, txt='Sentimiento', border=1, ln=True, align='C', fill=True)
+        
+        pdf.set_font("Arial", '', 8)
+        fill = False
+        
+        for index, row in df_agrupado.iterrows():
+            if fill:
+                pdf.set_fill_color(245, 247, 250)
+            else:
+                pdf.set_fill_color(255, 255, 255)
+                
+            pdf.set_text_color(50, 50, 50)
+            
+            # Limpiar nombre de caracteres raros (emojis, simbolos) que rompan el PDF
+            nombre_raw = str(row['nombre'])
+            nombre = nombre_raw.encode('latin-1', 'ignore').decode('latin-1')
+            if len(nombre) > 38:
+                nombre = nombre[:35] + "..."
+                
+            ventas_str = format_number(row['monto_ventas_usd'])
+            descargas_str = format_count(row['cantidad_descargas'])
+            ratio_val = row['ratio_positividad']
+            ratio_str = f"{ratio_val*100:.1f}%"
+            
+            # Traductor de Sentimiento
+            if ratio_val >= 0.85: sentimiento = "Muy Positivo"
+            elif ratio_val >= 0.70: sentimiento = "Positivo"
+            elif ratio_val >= 0.40: sentimiento = "Mixto"
+            else: sentimiento = "Negativo"
+            
+            pdf.cell(w_nombre, 7, txt=" " + nombre, border=1, align='L', fill=fill)
+            pdf.cell(w_ventas, 7, txt=ventas_str, border=1, align='C', fill=fill)
+            pdf.cell(w_descargas, 7, txt=descargas_str, border=1, align='C', fill=fill)
+            pdf.cell(w_ratio, 7, txt=ratio_str, border=1, align='C', fill=fill)
+            pdf.cell(w_sent, 7, txt=sentimiento, border=1, ln=True, align='C', fill=fill)
+            
+            fill = not fill
+            
+    # Pie de página final
+    pdf.ln(10)
     pdf.set_font("Arial", 'I', 8)
     pdf.set_text_color(150, 150, 150)
     pdf.cell(0, 10, txt="Generado por Steam Analytics BI v4.0 - Documento Confidencial", align='C')
