@@ -11,3 +11,4 @@ wordcloud
 textblob
 scikit-learn
 fpdf2
+statsmodels
