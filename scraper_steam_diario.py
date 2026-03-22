@@ -209,7 +209,7 @@ for appid in appids:
 
         resumen_diario.append({
             'fk_juego': appid,
-            'fecha_extraccion': fecha_hoy.strftime('%Y-%m-%d'),
+            'fk_tiempo': fecha_hoy.strftime('%Y-%m-%d'),   # ← corregido: era fecha_extraccion
             'total_resenas_analizadas': resenas_validas,
             'resenas_positivas_nlp': positivas_hoy,
             'resenas_negativas_nlp': negativas_hoy,
@@ -259,8 +259,9 @@ if DB_URI:
         )
 
         with engine.connect() as conn:
+            # ← corregido: era fecha_extraccion
             conn.execute(
-                text("DELETE FROM hechos_sentimiento WHERE fecha_extraccion = :d"),
+                text("DELETE FROM hechos_sentimiento WHERE fk_tiempo = :d"),
                 {"d": fecha_hoy}
             )
             conn.commit()
@@ -291,8 +292,10 @@ else:
     except NameError:
         directorio_actual = os.getcwd()
 
+    # En local se mantiene fecha_extraccion para que Pentaho lo mapee igual que siempre
+    df_csv = df_final.rename(columns={'fk_tiempo': 'fecha_extraccion'})
     ruta_csv = os.path.join(directorio_actual, 'resumen_sentimiento_diario.csv')
-    df_final.to_csv(ruta_csv, index=False, encoding='utf-8')
+    df_csv.to_csv(ruta_csv, index=False, encoding='utf-8')
     print(f"   └─ ✨ Archivo listo para Pentaho en: {ruta_csv}")
-    print(f"   └─ Registros guardados: {len(df_final)}")
-    print(f"   └─ Columnas: {list(df_final.columns)}")
+    print(f"   └─ Registros guardados: {len(df_csv)}")
+    print(f"   └─ Columnas: {list(df_csv.columns)}")
