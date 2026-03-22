@@ -1,4 +1,4 @@
-name: Ejecución Diaria Steam ETL
+name: Ejecucion Diaria Steam ETL
 
 on:
   workflow_dispatch: # Botón manual para pruebas
@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -15,13 +16,24 @@ jobs:
       - name: Build Docker Image
         run: docker build -t steam-image .
 
-      - name: Run Docker Container
+      # Paso 1 — Corre el scraper NLP (VADER + TextBlob → Supabase directo)
+      - name: Ejecutar Scraper NLP (scraper_steam_diario.py)
         env:
-          # Mapeo de secretos de GitHub a variables de entorno
           DB_URI: ${{ secrets.DB_URI }}
           DB_URI_BACKUP: ${{ secrets.DB_URI_BACKUP }}
         run: |
-          docker run --name steam-app \
+          docker run --name steam-scraper \
           -e DB_URI="$DB_URI" \
           -e DB_URI_BACKUP="$DB_URI_BACKUP" \
-          steam-image
+          steam-image python scraper_steam_diario.py
+
+      # Paso 2 — Corre el ETL básico (métricas de ventas → Supabase)
+      - name: Ejecutar ETL Basico (steam_etl.py)
+        env:
+          DB_URI: ${{ secrets.DB_URI }}
+          DB_URI_BACKUP: ${{ secrets.DB_URI_BACKUP }}
+        run: |
+          docker run --name steam-etl \
+          -e DB_URI="$DB_URI" \
+          -e DB_URI_BACKUP="$DB_URI_BACKUP" \
+          steam-image python steam_etl.py
