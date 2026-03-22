@@ -9,8 +9,8 @@ SQLAlchemy
 psycopg2-binary
 wordcloud
 textblob
+nltk
+lxml
 scikit-learn
 fpdf2
 statsmodels
-nltk
-lxml
