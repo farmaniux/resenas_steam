@@ -14,6 +14,7 @@ from lxml import html
 import pandas as pd
 import time
 import datetime
+import pytz
 import nltk
 import os
 import re
@@ -62,7 +63,11 @@ stopwords = set([
 
 appids = [440, 550, 730, 218230, 252490, 578080, 1085660, 1172470, 1240440, 1938090]
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-fecha_hoy = datetime.date.today()
+
+# Fecha correcta en zona horaria de México (no UTC)
+tz_mexico = pytz.timezone('America/Mexico_City')
+fecha_hoy = datetime.datetime.now(tz_mexico).date()
+
 resumen_diario = []
 
 # ---------------------------------------------------------------------------
@@ -71,7 +76,7 @@ resumen_diario = []
 
 print("=======================================================================")
 print("🚀 INICIANDO MOTOR PREMIUM STEAM-BI (EXTRACCIÓN + VADER/TextBlob NLP)")
-print(f"   Fecha de análisis: {fecha_hoy}")
+print(f"   Fecha México: {fecha_hoy}")
 print("=======================================================================")
 
 for appid in appids:
@@ -277,7 +282,7 @@ if DB_URI:
             method='multi'
         )
         print(f"   └─ ✅ {len(df_final)} registros cargados exitosamente a Supabase")
-        print(f"   └─ Fecha cargada: {fecha_hoy}")
+        print(f"   └─ Fecha México: {fecha_hoy}")
         print(f"   └─ Columnas: {list(df_final.columns)}")
 
     except Exception as e:
