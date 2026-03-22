@@ -12,3 +12,5 @@ textblob
 scikit-learn
 fpdf2
 statsmodels
+nltk
+lxml
