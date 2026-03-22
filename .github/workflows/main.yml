@@ -16,18 +16,9 @@ jobs:
       - name: Build Docker Image
         run: docker build -t steam-image .
 
-      # Paso 1 — Corre el scraper NLP (VADER + TextBlob → Supabase directo)
-      - name: Ejecutar Scraper NLP (scraper_steam_diario.py)
-        env:
-          DB_URI: ${{ secrets.DB_URI }}
-          DB_URI_BACKUP: ${{ secrets.DB_URI_BACKUP }}
-        run: |
-          docker run --name steam-scraper \
-          -e DB_URI="$DB_URI" \
-          -e DB_URI_BACKUP="$DB_URI_BACKUP" \
-          steam-image python scraper_steam_diario.py
-
-      # Paso 2 — Corre el ETL básico (métricas de ventas → Supabase)
+      # Paso 1 — ETL basico PRIMERO
+      # Inserta la fecha del dia en dim_tiempo
+      # asi cuando corra el scraper la fecha ya existe
       - name: Ejecutar ETL Basico (steam_etl.py)
         env:
           DB_URI: ${{ secrets.DB_URI }}
@@ -37,3 +28,16 @@ jobs:
           -e DB_URI="$DB_URI" \
           -e DB_URI_BACKUP="$DB_URI_BACKUP" \
           steam-image python steam_etl.py
+
+      # Paso 2 — Scraper NLP SEGUNDO
+      # La fecha ya existe en dim_tiempo gracias al paso anterior
+      # no hay violacion de llave foranea
+      - name: Ejecutar Scraper NLP (scraper_steam_diario.py)
+        env:
+          DB_URI: ${{ secrets.DB_URI }}
+          DB_URI_BACKUP: ${{ secrets.DB_URI_BACKUP }}
+        run: |
+          docker run --name steam-scraper \
+          -e DB_URI="$DB_URI" \
+          -e DB_URI_BACKUP="$DB_URI_BACKUP" \
+          steam-image python scraper_steam_diario.py
