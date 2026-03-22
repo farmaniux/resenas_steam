@@ -5,6 +5,8 @@
 # Autor: Farid Rodriguez Puc
 # Descripción: Extrae reseñas de Steam, aplica análisis de sentimiento híbrido
 #              y genera CSV para Pentaho (local) o carga directo a Supabase (nube).
+# NOTA: En GitHub Actions este script corre DESPUÉS de steam_etl.py
+#       que ya insertó la fecha del día en dim_tiempo.
 # =============================================================================
 
 import requests
@@ -69,6 +71,7 @@ resumen_diario = []
 
 print("=======================================================================")
 print("🚀 INICIANDO MOTOR PREMIUM STEAM-BI (EXTRACCIÓN + VADER/TextBlob NLP)")
+print(f"   Fecha de análisis: {fecha_hoy}")
 print("=======================================================================")
 
 for appid in appids:
@@ -209,7 +212,7 @@ for appid in appids:
 
         resumen_diario.append({
             'fk_juego': appid,
-            'fk_tiempo': fecha_hoy.strftime('%Y-%m-%d'),   # ← corregido: era fecha_extraccion
+            'fk_tiempo': fecha_hoy.strftime('%Y-%m-%d'),
             'total_resenas_analizadas': resenas_validas,
             'resenas_positivas_nlp': positivas_hoy,
             'resenas_negativas_nlp': negativas_hoy,
@@ -243,7 +246,7 @@ DB_URI = os.getenv('DB_URI')
 if DB_URI:
     # -----------------------------------------------------------------------
     # MODO NUBE (GitHub Actions / Docker)
-    # DB_URI existe como variable de entorno → carga directo a Supabase
+    # La fecha ya existe en dim_tiempo porque steam_etl.py corrió primero
     # -----------------------------------------------------------------------
     print("☁️  Modo Nube detectado — cargando directo a Supabase...")
     try:
@@ -259,7 +262,6 @@ if DB_URI:
         )
 
         with engine.connect() as conn:
-            # ← corregido: era fecha_extraccion
             conn.execute(
                 text("DELETE FROM hechos_sentimiento WHERE fk_tiempo = :d"),
                 {"d": fecha_hoy}
@@ -275,6 +277,7 @@ if DB_URI:
             method='multi'
         )
         print(f"   └─ ✅ {len(df_final)} registros cargados exitosamente a Supabase")
+        print(f"   └─ Fecha cargada: {fecha_hoy}")
         print(f"   └─ Columnas: {list(df_final.columns)}")
 
     except Exception as e:
@@ -284,7 +287,7 @@ if DB_URI:
 else:
     # -----------------------------------------------------------------------
     # MODO LOCAL (Windows + Pentaho)
-    # DB_URI no existe → genera CSV para que Pentaho lo tome como siempre
+    # Genera CSV para que Pentaho lo tome como siempre
     # -----------------------------------------------------------------------
     print("💻 Modo Local detectado — generando CSV para Pentaho...")
     try:
@@ -292,7 +295,7 @@ else:
     except NameError:
         directorio_actual = os.getcwd()
 
-    # En local se mantiene fecha_extraccion para que Pentaho lo mapee igual que siempre
+    # Renombra fk_tiempo → fecha_extraccion para que Pentaho lo mapee igual que siempre
     df_csv = df_final.rename(columns={'fk_tiempo': 'fecha_extraccion'})
     ruta_csv = os.path.join(directorio_actual, 'resumen_sentimiento_diario.csv')
     df_csv.to_csv(ruta_csv, index=False, encoding='utf-8')
