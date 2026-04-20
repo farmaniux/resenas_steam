@@ -1,3 +1,5 @@
+# STM-20: GitHub Actions - Cron automatico configurado para ETL diario
+# Sprint 3 - Automatizacion Cloud | TecNM Ingeniería Informática
 name: Ejecucion Diaria Steam ETL
 
 on:
