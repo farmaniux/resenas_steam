@@ -1,3 +1,6 @@
+# STM-24: Pipeline ETL unificado - Python + Pentaho
+# Sprint 6 - Unificación y Migración Cloud
+# Proyecto Steam-BI | TecNM Ingeniería Informática
 #!/usr/bin/env python
 # coding: utf-8
 # =============================================================================
