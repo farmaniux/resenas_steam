@@ -1,14 +1,11 @@
 name: Ejecucion Diaria Steam ETL
-
 on:
-  workflow_dispatch: # Botón manual para pruebas
+  workflow_dispatch:
   schedule:
-    - cron: '20 8 * * *'  # 02:20 AM hora de México (08:20 UTC)
-
+    - cron: '20 8 * * *'
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -16,10 +13,7 @@ jobs:
       - name: Build Docker Image
         run: docker build -t steam-image .
 
-      # Paso 1 — ETL basico PRIMERO
-      # Inserta la fecha del dia en dim_tiempo
-      # asi cuando corra el scraper la fecha ya existe
-      - name: Ejecutar ETL Basico (steam_etl.py)
+      - name: "STM-10 STM-11: Ejecutar ETL Basico (steam_etl.py)"
         env:
           DB_URI: ${{ secrets.DB_URI }}
           DB_URI_BACKUP: ${{ secrets.DB_URI_BACKUP }}
@@ -29,10 +23,7 @@ jobs:
           -e DB_URI_BACKUP="$DB_URI_BACKUP" \
           steam-image python steam_etl.py
 
-      # Paso 2 — Scraper NLP SEGUNDO
-      # La fecha ya existe en dim_tiempo gracias al paso anterior
-      # no hay violacion de llave foranea
-      - name: Ejecutar Scraper NLP (scraper_steam_diario.py)
+      - name: "STM-24 STM-25 STM-26: Ejecutar Scraper NLP (scraper_steam_diario.py)"
         env:
           DB_URI: ${{ secrets.DB_URI }}
           DB_URI_BACKUP: ${{ secrets.DB_URI_BACKUP }}
