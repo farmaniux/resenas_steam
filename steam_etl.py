@@ -1,3 +1,5 @@
+# STM-15: Instancia PostgreSQL creada en Supabase con conexion segura
+# Sprint 2 - Data Warehouse Supabase | TecNM Ingeniería Informática
 import requests
 import pandas as pd
 from sqlalchemy import create_engine, text
