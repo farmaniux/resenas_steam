@@ -39,267 +39,306 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap');
     
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     
     html, body, [class*="css"] {
         font-family: 'DM Sans', sans-serif;
-        background: #0a0e27;
-        color: #e8e9ed;
+        background: #050a18;
+        color: #c8d6e5;
     }
     
     .main {
-        background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1428 100%);
+        background: 
+            radial-gradient(ellipse at 20% 50%, rgba(0, 212, 255, 0.06) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 20%, rgba(180, 74, 255, 0.06) 0%, transparent 50%),
+            radial-gradient(ellipse at 50% 80%, rgba(0, 255, 136, 0.04) 0%, transparent 50%),
+            linear-gradient(180deg, #050a18 0%, #0a1628 50%, #050a18 100%);
+        background-attachment: fixed;
         padding: 2rem 1rem;
     }
     
+    /* Scanline CRT overlay */
+    .main::before {
+        content: '';
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: repeating-linear-gradient(0deg, rgba(0, 212, 255, 0.015) 0px, transparent 1px, transparent 3px);
+        pointer-events: none;
+        z-index: 999;
+    }
+    
     h1, h2, h3, h4 {
-        font-family: 'Space Mono', monospace !important;
+        font-family: 'Orbitron', sans-serif !important;
         font-weight: 700 !important;
-        letter-spacing: -0.02em;
+        letter-spacing: 0.05em;
     }
     
     h1 {
-        font-size: 3.5rem !important;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        font-size: 3rem !important;
+        background: linear-gradient(135deg, #00d4ff 0%, #b44aff 40%, #00ff88 80%, #00d4ff 100%);
+        background-size: 300% 300%;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
         margin-bottom: 0.5rem !important;
         text-transform: uppercase;
-        animation: shimmer 3s infinite;
+        animation: neonShimmer 4s ease-in-out infinite;
+        filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.3));
     }
     
-    @keyframes shimmer {
+    @keyframes neonShimmer {
         0%, 100% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
     }
     
     h2 {
-        color: #a5b4fc !important;
-        font-size: 1.5rem !important;
-        border-left: 4px solid #667eea;
+        color: #00d4ff !important;
+        font-size: 1.4rem !important;
+        border-left: 3px solid #00d4ff;
         padding-left: 1rem;
         margin: 2rem 0 1.5rem 0 !important;
+        text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
     }
     
     h3 {
-        color: #c7d2fe !important;
-        font-size: 1.1rem !important;
+        color: #7dd3fc !important;
+        font-size: 1.05rem !important;
         margin-bottom: 1rem !important;
     }
     
+    /* === METRIC CARDS — NEON GLOW === */
     .stMetric {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.05) 100%);
-        border: 2px solid rgba(102, 126, 234, 0.3);
-        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(0, 212, 255, 0.05) 0%, rgba(180, 74, 255, 0.03) 100%);
+        border: 1px solid rgba(0, 212, 255, 0.25);
+        border-radius: 12px;
         padding: 1.8rem 1.5rem !important;
         box-shadow: 
-            0 4px 24px rgba(0, 0, 0, 0.4),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            0 0 15px rgba(0, 212, 255, 0.08),
+            inset 0 1px 0 rgba(0, 212, 255, 0.1);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
         overflow: hidden;
+        backdrop-filter: blur(10px);
     }
     
-    .stMetric::before {
+    .stMetric::after {
         content: '';
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, transparent 100%);
-        opacity: 0;
-        transition: opacity 0.3s ease;
+        top: 0; left: 0;
+        width: 100%; height: 2px;
+        background: linear-gradient(90deg, transparent, #00d4ff, #b44aff, transparent);
+        animation: scanTop 3s linear infinite;
     }
-    
-    .stMetric:hover::before {
-        opacity: 1;
+    @keyframes scanTop {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
     }
     
     .stMetric:hover {
-        transform: translateY(-4px);
-        border-color: rgba(102, 126, 234, 0.6);
+        transform: translateY(-6px) scale(1.02);
+        border-color: rgba(0, 212, 255, 0.6);
         box-shadow: 
-            0 12px 40px rgba(102, 126, 234, 0.3),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            0 0 30px rgba(0, 212, 255, 0.2),
+            0 15px 40px rgba(0, 0, 0, 0.4),
+            inset 0 1px 0 rgba(0, 212, 255, 0.2);
     }
     
     .stMetric label {
-        font-size: 0.85rem !important;
+        font-size: 0.8rem !important;
         font-weight: 600 !important;
-        color: #a5b4fc !important;
+        color: #00d4ff !important;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 0.5rem;
+        letter-spacing: 0.08em;
+        font-family: 'Orbitron', sans-serif !important;
     }
     
     .stMetric [data-testid="stMetricValue"] {
-        font-size: 2.5rem !important;
+        font-size: 2.2rem !important;
         font-weight: 700 !important;
-        color: #e0e7ff !important;
-        font-family: 'Space Mono', monospace !important;
+        color: #e0f2fe !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        text-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
     }
     
     .stMetric [data-testid="stMetricDelta"] {
-        font-size: 0.9rem !important;
-        color: #34d399 !important;
+        font-size: 0.85rem !important;
+        color: #00ff88 !important;
     }
     
+    /* === TABS — NEON === */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background: rgba(15, 20, 40, 0.6);
+        gap: 6px;
+        background: rgba(5, 10, 24, 0.8);
         padding: 0.5rem;
-        border-radius: 12px;
-        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 10px;
+        border: 1px solid rgba(0, 212, 255, 0.15);
+        backdrop-filter: blur(10px);
     }
     
     .stTabs [data-baseweb="tab"] {
-        height: 50px;
+        height: 48px;
         background: transparent;
         border-radius: 8px;
-        color: #94a3b8;
+        color: #64748b;
         font-weight: 600;
-        font-size: 0.95rem;
-        border: none;
-        padding: 0 1.5rem;
-        transition: all 0.2s ease;
+        font-size: 0.9rem;
+        border: 1px solid transparent;
+        padding: 0 1.2rem;
+        transition: all 0.3s ease;
+        font-family: 'Orbitron', sans-serif;
     }
     
     .stTabs [data-baseweb="tab"]:hover {
-        background: rgba(102, 126, 234, 0.1);
-        color: #c7d2fe;
+        background: rgba(0, 212, 255, 0.08);
+        color: #00d4ff;
+        border-color: rgba(0, 212, 255, 0.2);
     }
     
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        color: white !important;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        background: linear-gradient(135deg, rgba(0, 212, 255, 0.2) 0%, rgba(180, 74, 255, 0.15) 100%) !important;
+        color: #00d4ff !important;
+        border: 1px solid rgba(0, 212, 255, 0.5) !important;
+        box-shadow: 0 0 15px rgba(0, 212, 255, 0.2), inset 0 0 15px rgba(0, 212, 255, 0.05);
     }
     
+    /* === SIDEBAR === */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0f1428 0%, #1a1f3a 100%);
-        border-right: 2px solid rgba(102, 126, 234, 0.2);
+        background: linear-gradient(180deg, #060d1f 0%, #0a1628 50%, #060d1f 100%);
+        border-right: 1px solid rgba(0, 212, 255, 0.15);
     }
     
-    [data-testid="stSidebar"] .stMarkdown {
-        color: #e0e7ff;
-    }
+    [data-testid="stSidebar"] .stMarkdown { color: #c8d6e5; }
     
     [data-testid="stSidebar"] h1 {
-        font-size: 1.5rem !important;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        font-size: 1.3rem !important;
+        background: linear-gradient(135deg, #00d4ff 0%, #b44aff 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
     
+    /* === FORM ELEMENTS === */
     .stMultiSelect [data-baseweb="select"] {
-        background: rgba(15, 20, 40, 0.6);
-        border: 2px solid rgba(102, 126, 234, 0.3);
-        border-radius: 12px;
+        background: rgba(5, 10, 24, 0.8);
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        border-radius: 8px;
     }
     
     .stMultiSelect [data-baseweb="tag"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        border-radius: 6px;
+        background: linear-gradient(135deg, rgba(0, 212, 255, 0.3) 0%, rgba(180, 74, 255, 0.3) 100%);
+        border: 1px solid rgba(0, 212, 255, 0.4);
+        border-radius: 4px;
         font-weight: 600;
+        color: #e0f2fe;
     }
     
     .stDataFrame {
-        border: 2px solid rgba(102, 126, 234, 0.2);
-        border-radius: 12px;
+        border: 1px solid rgba(0, 212, 255, 0.15);
+        border-radius: 10px;
         overflow: hidden;
     }
     
     .stButton button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
+        background: linear-gradient(135deg, rgba(0, 212, 255, 0.2) 0%, rgba(180, 74, 255, 0.2) 100%);
+        color: #00d4ff;
+        border: 1px solid rgba(0, 212, 255, 0.4);
         border-radius: 8px;
         padding: 0.75rem 2rem;
-        font-weight: 600;
-        font-size: 0.95rem;
+        font-weight: 700;
+        font-size: 0.9rem;
+        font-family: 'Orbitron', sans-serif;
+        letter-spacing: 0.05em;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 0 10px rgba(0, 212, 255, 0.1);
+        text-transform: uppercase;
     }
     
     .stButton button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        box-shadow: 0 0 25px rgba(0, 212, 255, 0.3);
+        border-color: #00d4ff;
+        color: #ffffff;
+        background: linear-gradient(135deg, rgba(0, 212, 255, 0.3) 0%, rgba(180, 74, 255, 0.3) 100%);
     }
     
-    .stSlider [data-baseweb="slider"] {
-        background: rgba(102, 126, 234, 0.2);
-    }
-    
+    .stSlider [data-baseweb="slider"] { background: rgba(0, 212, 255, 0.15); }
     .stSlider [role="slider"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+        background: linear-gradient(135deg, #00d4ff 0%, #b44aff 100%);
+        box-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
     }
     
     .stAlert {
-        background: rgba(15, 20, 40, 0.8);
-        border: 2px solid rgba(102, 126, 234, 0.3);
-        border-radius: 12px;
+        background: rgba(5, 10, 24, 0.85);
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        border-radius: 10px;
         padding: 1rem;
+        backdrop-filter: blur(10px);
     }
+    .stSuccess { border-color: rgba(0, 255, 136, 0.4); background: rgba(0, 255, 136, 0.05); }
+    .stInfo { border-color: rgba(0, 212, 255, 0.4); background: rgba(0, 212, 255, 0.05); }
+    .stWarning { border-color: rgba(255, 183, 0, 0.4); background: rgba(255, 183, 0, 0.05); }
     
-    .stSuccess {
-        border-color: rgba(52, 211, 153, 0.4);
-        background: rgba(16, 185, 129, 0.1);
-    }
-    
-    .stInfo {
-        border-color: rgba(102, 126, 234, 0.4);
-        background: rgba(102, 126, 234, 0.1);
-    }
-    
-    .stWarning {
-        border-color: rgba(251, 191, 36, 0.4);
-        background: rgba(251, 191, 36, 0.1);
-    }
-    
-    ::-webkit-scrollbar {
-        width: 10px;
-        height: 10px;
-    }
-    
-    ::-webkit-scrollbar-track {
-        background: rgba(15, 20, 40, 0.4);
-    }
-    
+    /* === SCROLLBAR NEON === */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(5, 10, 24, 0.6); }
     ::-webkit-scrollbar-thumb {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 5px;
+        background: linear-gradient(180deg, #00d4ff 0%, #b44aff 100%);
+        border-radius: 4px;
     }
+    ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #00ff88 0%, #00d4ff 100%); }
     
-    ::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-    }
-    
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.6; }
-    }
-    
-    .element-container {
-        animation: fadeInUp 0.6s ease-out;
-    }
-    
+    /* === ANIMATIONS === */
+    .element-container { animation: fadeInUp 0.5s ease-out; }
     @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
+        from { opacity: 0; transform: translateY(15px); }
         to { opacity: 1; transform: translateY(0); }
     }
     
+    @keyframes neonPulse {
+        0%, 100% { box-shadow: 0 0 5px rgba(0, 212, 255, 0.2); }
+        50% { box-shadow: 0 0 20px rgba(0, 212, 255, 0.4), 0 0 40px rgba(0, 212, 255, 0.1); }
+    }
+    
+    @keyframes borderGlow {
+        0%, 100% { border-color: rgba(0, 212, 255, 0.3); }
+        50% { border-color: rgba(180, 74, 255, 0.5); }
+    }
+    
+    hr { border-color: rgba(0, 212, 255, 0.1) !important; }
+    
+    .stExpander {
+        border: 1px solid rgba(0, 212, 255, 0.15);
+        border-radius: 8px;
+        background: rgba(5, 10, 24, 0.6);
+    }
+    
+    .stSelectbox [data-baseweb="select"] {
+        background: rgba(5, 10, 24, 0.8);
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        border-radius: 8px;
+    }
+    
+    .stNumberInput input {
+        background: rgba(5, 10, 24, 0.8) !important;
+        border: 1px solid rgba(0, 212, 255, 0.2) !important;
+        color: #e0f2fe !important;
+        border-radius: 8px !important;
+    }
+    
+    .stTextInput input {
+        background: rgba(5, 10, 24, 0.8) !important;
+        border: 1px solid rgba(0, 212, 255, 0.2) !important;
+        color: #e0f2fe !important;
+        border-radius: 8px !important;
+    }
+    .stTextInput input:focus {
+        border-color: #00d4ff !important;
+        box-shadow: 0 0 10px rgba(0, 212, 255, 0.2) !important;
+    }
+    
     @media (max-width: 768px) {
-        h1 { font-size: 2rem !important; }
+        h1 { font-size: 1.8rem !important; }
         .stMetric { padding: 1.2rem 1rem !important; }
     }
     </style>
@@ -330,6 +369,25 @@ def format_count(num):
     if num >= 1e3:
         return f"{num / 1e3:.2f}K"
     return f"{num:,.0f}"
+
+def get_steam_image(appid):
+    """Generate Steam CDN header capsule image URL."""
+    return f"https://cdn.akamai.steamstatic.com/steam/apps/{appid}/header.jpg"
+
+def get_steam_url(appid):
+    """Generate Steam store URL."""
+    return f"https://store.steampowered.com/app/{appid}"
+
+def get_sentiment_badge(ratio):
+    """Return styled HTML badge for satisfaction ratio."""
+    if ratio >= 0.85:
+        return '<span style="background:#00ff88;color:#050a18;padding:2px 8px;border-radius:4px;font-weight:700;font-size:0.75rem;">MUY POSITIVO</span>'
+    elif ratio >= 0.70:
+        return '<span style="background:#00d4ff;color:#050a18;padding:2px 8px;border-radius:4px;font-weight:700;font-size:0.75rem;">POSITIVO</span>'
+    elif ratio >= 0.40:
+        return '<span style="background:#ffb700;color:#050a18;padding:2px 8px;border-radius:4px;font-weight:700;font-size:0.75rem;">MIXTO</span>'
+    else:
+        return '<span style="background:#ff2d78;color:#ffffff;padding:2px 8px;border-radius:4px;font-weight:700;font-size:0.75rem;">NEGATIVO</span>'
 
 def generar_pdf(df_filtered, ventas, descargas, ratio, juegos_count):
     pdf = FPDF()
@@ -574,22 +632,40 @@ if df.empty:
 # ═══════════════════════════════════════════════════════════════════════════
 
 with st.sidebar:
-    col_logo, col_title = st.columns([1, 3])
-    with col_logo:
-        st.image("https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg", width=50)
-    with col_title:
-        st.markdown("### Steam Analytics")
+    st.markdown("""
+    <div style="text-align:center; padding: 1rem 0;">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg" width="45" style="filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.5));">
+        <p style="font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:700; margin:0.5rem 0 0 0; background:linear-gradient(135deg,#00d4ff,#b44aff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">STEAM ANALYTICS</p>
+        <p style="font-size:0.7rem; color:#64748b; letter-spacing:0.1em; font-family:'Orbitron',sans-serif;">ENTERPRISE v5.0</p>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("---")
     st.markdown("#### 🎯 Filtros de Análisis")
     
+    # FILTRO: Búsqueda por nombre
+    search_name = st.text_input("🔍 Buscar Juego", "", placeholder="Nombre del juego...", help="Búsqueda parcial por nombre")
+    
+    # FILTRO: Subgéneros (existente)
     all_subgenres = sorted(df['subgenero'].dropna().unique())
     selected_subgenres = st.multiselect(
-        "Categorías de Juego",
+        "🎮 Categorías de Juego",
         options=all_subgenres,
         default=all_subgenres,
         help="Selecciona los subgéneros que deseas analizar"
     )
+    
+    # FILTRO: Desarrollador (nuevo)
+    all_developers = sorted(df['desarrollador'].dropna().unique()) if 'desarrollador' in df.columns else []
+    if all_developers:
+        selected_devs = st.multiselect(
+            "🏢 Desarrollador",
+            options=all_developers,
+            default=all_developers,
+            help="Filtrar por estudio desarrollador"
+        )
+    else:
+        selected_devs = []
     
     st.markdown("#### 💰 Rango de Ventas")
     min_sales = float(df['monto_ventas_usd'].min())
@@ -604,18 +680,30 @@ with st.sidebar:
         help="Filtra juegos por rango de ventas"
     )
     
+    # FILTRO: Satisfacción mínima (nuevo)
+    st.markdown("#### ⭐ Calidad Mínima")
+    min_satisfaction = st.slider(
+        "Satisfacción mínima (%)",
+        min_value=0,
+        max_value=100,
+        value=0,
+        format="%d%%",
+        help="Filtra juegos con satisfacción igual o superior"
+    )
+    
     st.markdown("---")
     st.markdown("#### 📊 Estado del Sistema")
-    st.success(f"✅ **{len(df):,}** juegos en DWH")
+    st.success(f"✅ **{len(df):,}** registros en DWH")
     st.info(f"🔄 Última actualización: Hace {np.random.randint(5, 30)} min")
     
     st.markdown("---")
     with st.expander("ℹ️ Acerca del Dashboard"):
         st.markdown("""
-        **Steam Analytics v4.0**
+        **Steam Analytics Enterprise v5.0**
         Plataforma de inteligencia de mercado para análisis de videojuegos en Steam.
         - 📈 Análisis en tiempo real
-        - 📊 Visualizaciones interactivas
+        - 📊 Visualizaciones interactivas  
+        - 🖼️ Imágenes y links de Steam Store
         - ☁️ Inteligencia Artificial NLP
         - 🔒 Conexión segura a Supabase
         """)
@@ -623,7 +711,18 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("#### 📄 Reportes para Gerencia")
     
-    df_filtered = df[(df['subgenero'].isin(selected_subgenres)) & (df['monto_ventas_usd'].between(sales_range[0], sales_range[1]))].copy()
+    # === APLICAR TODOS LOS FILTROS ===
+    df_filtered = df[
+        (df['subgenero'].isin(selected_subgenres)) & 
+        (df['monto_ventas_usd'].between(sales_range[0], sales_range[1])) &
+        (df['ratio_positividad'] >= min_satisfaction / 100.0)
+    ].copy()
+    
+    if search_name.strip():
+        df_filtered = df_filtered[df_filtered['nombre'].str.contains(search_name.strip(), case=False, na=False)]
+    
+    if selected_devs and 'desarrollador' in df.columns:
+        df_filtered = df_filtered[df_filtered['desarrollador'].isin(selected_devs)]
 
     if PDF_ENABLED and not df_filtered.empty:
         v_tot = df_filtered['monto_ventas_usd'].sum()
@@ -644,11 +743,18 @@ with st.sidebar:
         st.warning("⚠️ Falta librería fpdf.")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# HEADER PRINCIPAL
+# HEADER PRINCIPAL — NEON CYBERPUNK
 # ═══════════════════════════════════════════════════════════════════════════
 
-st.markdown("# 🎮 Steam Analytics")
-st.markdown("### Plataforma de Inteligencia de Mercado")
+st.markdown("""
+<div style="text-align:center; padding: 1.5rem 0 0.5rem 0;">
+    <p style="font-family:'Orbitron',sans-serif; font-size:0.75rem; color:#00d4ff; letter-spacing:0.3em; text-transform:uppercase; margin-bottom:0.5rem; text-shadow: 0 0 10px rgba(0,212,255,0.5);">⬡ ENTERPRISE INTELLIGENCE PLATFORM ⬡</p>
+    <h1 style="font-family:'Orbitron',sans-serif; font-size:2.8rem; font-weight:900; margin:0; background:linear-gradient(135deg,#00d4ff 0%,#b44aff 40%,#00ff88 80%,#00d4ff 100%); background-size:300% 300%; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation: neonShimmer 4s ease-in-out infinite; filter:drop-shadow(0 0 30px rgba(0,212,255,0.3)); text-transform:uppercase; letter-spacing:0.05em;">🎮 Steam Analytics</h1>
+    <p style="font-family:'Orbitron',sans-serif; font-size:0.85rem; color:#64748b; margin-top:0.3rem; letter-spacing:0.1em;">PLATAFORMA DE INTELIGENCIA DE MERCADO</p>
+    <div style="width:200px; height:2px; background:linear-gradient(90deg,transparent,#00d4ff,#b44aff,#00ff88,transparent); margin:1rem auto 0; border-radius:1px;"></div>
+</div>
+""", unsafe_allow_html=True)
+
 st.markdown("---")
 
 col1, col2, col3, col4 = st.columns(4)
@@ -671,11 +777,12 @@ with col4:
 
 st.markdown("---")
 
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 Análisis de Mercado",
     "🎛️ Simulador Estratégico",
     "🗄️ Explorador de Datos",
-    "☁️ Inteligencia NLP (Premium)"
+    "☁️ Inteligencia NLP",
+    "🎮 Game Explorer"
 ])
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -704,10 +811,10 @@ with tab1:
                 height=550
             )
             fig_scatter.update_layout(
-                font=dict(family="DM Sans", size=12), paper_bgcolor='rgba(15, 20, 40, 0.6)', plot_bgcolor='rgba(0, 0, 0, 0.2)',
-                xaxis=dict(showgrid=True, gridcolor='rgba(102, 126, 234, 0.1)', tickformat=",", title_font=dict(size=14, color='#a5b4fc')),
-                yaxis=dict(showgrid=True, gridcolor='rgba(102, 126, 234, 0.1)', tickformat="$,.0f", title_font=dict(size=14, color='#a5b4fc')),
-                legend=dict(bgcolor='rgba(15, 20, 40, 0.8)', bordercolor='rgba(102, 126, 234, 0.3)', borderwidth=1),
+                font=dict(family="DM Sans", size=12), paper_bgcolor='rgba(5, 10, 24, 0.6)', plot_bgcolor='rgba(0, 0, 0, 0.3)',
+                xaxis=dict(showgrid=True, gridcolor='rgba(0, 212, 255, 0.08)', tickformat=",", title_font=dict(size=14, color='#00d4ff')),
+                yaxis=dict(showgrid=True, gridcolor='rgba(0, 212, 255, 0.08)', tickformat="$,.0f", title_font=dict(size=14, color='#00d4ff')),
+                legend=dict(bgcolor='rgba(5, 10, 24, 0.9)', bordercolor='rgba(0, 212, 255, 0.2)', borderwidth=1),
                 margin=dict(t=40, b=40, l=40, r=40)
             )
             st.plotly_chart(fig_scatter, use_container_width=True)
@@ -721,8 +828,8 @@ with tab1:
             st.markdown("### 🥧 Distribución por Categoría")
             market_share = df_filtered.groupby('subgenero')['monto_ventas_usd'].sum().reset_index()
             market_share = market_share.sort_values('monto_ventas_usd', ascending=False).head(10)
-            fig_pie = px.pie(market_share, values='monto_ventas_usd', names='subgenero', hole=0.4, template="plotly_dark", color_discrete_sequence=px.colors.sequential.Purples_r)
-            fig_pie.update_layout(font=dict(family="DM Sans", size=12), paper_bgcolor='rgba(15, 20, 40, 0.6)', legend=dict(bgcolor='rgba(15, 20, 40, 0.8)', bordercolor='rgba(102, 126, 234, 0.3)', borderwidth=1), margin=dict(t=20, b=20, l=20, r=20))
+            fig_pie = px.pie(market_share, values='monto_ventas_usd', names='subgenero', hole=0.45, template="plotly_dark", color_discrete_sequence=['#00d4ff','#b44aff','#00ff88','#ff2d78','#ffb700','#7dd3fc','#a78bfa','#34d399','#f472b6','#38bdf8'])
+            fig_pie.update_layout(font=dict(family="DM Sans", size=12), paper_bgcolor='rgba(5, 10, 24, 0.6)', legend=dict(bgcolor='rgba(5, 10, 24, 0.9)', bordercolor='rgba(0, 212, 255, 0.2)', borderwidth=1), margin=dict(t=20, b=20, l=20, r=20))
             fig_pie.update_traces(textposition='inside', textinfo='percent+label', hovertemplate="<b>%{label}</b><br>Ventas: $%{value:,.0f}<br>Porcentaje: %{percent}<extra></extra>")
             st.plotly_chart(fig_pie, use_container_width=True)
         
@@ -730,8 +837,8 @@ with tab1:
             st.markdown("### 🏆 Top 10 Juegos Rentables")
             if len(df_filtered) > 0:
                 top_games = df_filtered.nlargest(min(10, len(df_filtered)), 'monto_ventas_usd').sort_values('monto_ventas_usd', ascending=True)
-                fig_bar = px.bar(top_games, x='monto_ventas_usd', y='nombre', orientation='h', color='monto_ventas_usd', color_continuous_scale='Purples', hover_data={'monto_ventas_usd': ':$,.2f', 'conteo_resenas': ':,', 'ratio_positividad': ':.1%'}, labels={'monto_ventas_usd': 'Ventas (USD)', 'nombre': 'Juego'}, template="plotly_dark")
-                fig_bar.update_layout(font=dict(family="DM Sans", size=11), paper_bgcolor='rgba(15, 20, 40, 0.6)', plot_bgcolor='rgba(0, 0, 0, 0.2)', xaxis=dict(showgrid=True, gridcolor='rgba(102, 126, 234, 0.1)', tickformat="$,.0s"), yaxis=dict(tickfont=dict(size=10)), showlegend=False, margin=dict(t=20, b=40, l=10, r=20))
+                fig_bar = px.bar(top_games, x='monto_ventas_usd', y='nombre', orientation='h', color='monto_ventas_usd', color_continuous_scale=[[0,'#0a1628'],[0.5,'#00d4ff'],[1,'#00ff88']], hover_data={'monto_ventas_usd': ':$,.2f', 'conteo_resenas': ':,', 'ratio_positividad': ':.1%'}, labels={'monto_ventas_usd': 'Ventas (USD)', 'nombre': 'Juego'}, template="plotly_dark")
+                fig_bar.update_layout(font=dict(family="DM Sans", size=11), paper_bgcolor='rgba(5, 10, 24, 0.6)', plot_bgcolor='rgba(0, 0, 0, 0.3)', xaxis=dict(showgrid=True, gridcolor='rgba(0, 212, 255, 0.08)', tickformat="$,.0s"), yaxis=dict(tickfont=dict(size=10)), showlegend=False, margin=dict(t=20, b=40, l=10, r=20))
                 st.plotly_chart(fig_bar, use_container_width=True)
             else:
                 st.info("No hay datos disponibles para este filtro.")
@@ -742,8 +849,8 @@ with tab1:
             dev_stats = df_filtered.groupby('desarrollador').agg({'monto_ventas_usd': 'sum', 'cantidad_descargas': 'sum', 'nombre': 'count'}).reset_index()
             dev_stats.columns = ['Desarrollador', 'Ventas Totales', 'Descargas', 'Cantidad de Juegos']
             dev_stats = dev_stats.sort_values('Ventas Totales', ascending=False).head(15)
-            fig_dev = px.bar(dev_stats, x='Desarrollador', y='Ventas Totales', color='Cantidad de Juegos', hover_data=['Descargas'], labels={'Ventas Totales': 'Ventas (USD)'}, template="plotly_dark", color_continuous_scale='Viridis')
-            fig_dev.update_layout(font=dict(family="DM Sans", size=12), paper_bgcolor='rgba(15, 20, 40, 0.6)', plot_bgcolor='rgba(0, 0, 0, 0.2)', xaxis=dict(showgrid=False, tickangle=-45), yaxis=dict(showgrid=True, gridcolor='rgba(102, 126, 234, 0.1)', tickformat="$,.0s"), margin=dict(t=40, b=100, l=40, r=40), height=400)
+            fig_dev = px.bar(dev_stats, x='Desarrollador', y='Ventas Totales', color='Cantidad de Juegos', hover_data=['Descargas'], labels={'Ventas Totales': 'Ventas (USD)'}, template="plotly_dark", color_continuous_scale=[[0,'#0a1628'],[0.5,'#b44aff'],[1,'#00d4ff']])
+            fig_dev.update_layout(font=dict(family="DM Sans", size=12), paper_bgcolor='rgba(5, 10, 24, 0.6)', plot_bgcolor='rgba(0, 0, 0, 0.3)', xaxis=dict(showgrid=False, tickangle=-45), yaxis=dict(showgrid=True, gridcolor='rgba(0, 212, 255, 0.08)', tickformat="$,.0s"), margin=dict(t=40, b=100, l=40, r=40), height=400)
             st.plotly_chart(fig_dev, use_container_width=True)
 
         st.markdown("---")
@@ -752,8 +859,8 @@ with tab1:
             df_time = df_filtered.groupby('fecha')['monto_ventas_usd'].sum().reset_index()
             df_time = df_time.sort_values('fecha')
             fig_time = px.line(df_time, x='fecha', y='monto_ventas_usd', template="plotly_dark", labels={'fecha': 'Fecha', 'monto_ventas_usd': 'Ventas Diarias (USD)'})
-            fig_time.update_traces(line_color='#a5b4fc', line_width=3)
-            fig_time.update_layout(paper_bgcolor='rgba(15, 20, 40, 0.6)', plot_bgcolor='rgba(0, 0, 0, 0.2)', xaxis=dict(showgrid=True, gridcolor='rgba(102, 126, 234, 0.1)'), yaxis=dict(showgrid=True, gridcolor='rgba(102, 126, 234, 0.1)', tickformat="$,.0s"), height=350, margin=dict(t=30, b=30, l=30, r=30))
+            fig_time.update_traces(line_color='#00d4ff', line_width=3, fill='tozeroy', fillcolor='rgba(0, 212, 255, 0.05)')
+            fig_time.update_layout(paper_bgcolor='rgba(5, 10, 24, 0.6)', plot_bgcolor='rgba(0, 0, 0, 0.3)', xaxis=dict(showgrid=True, gridcolor='rgba(0, 212, 255, 0.08)'), yaxis=dict(showgrid=True, gridcolor='rgba(0, 212, 255, 0.08)', tickformat="$,.0s"), height=350, margin=dict(t=30, b=30, l=30, r=30))
             st.plotly_chart(fig_time, use_container_width=True)
         else:
             st.info("Aún no hay suficientes datos históricos de tiempo para mostrar esta tendencia.")
@@ -790,11 +897,11 @@ with tab1:
                     vals_j2.append((val2 / max_val) * 100)
 
                 fig_radar = go.Figure()
-                fig_radar.add_trace(go.Scatterpolar(r=vals_j1, theta=nombres_metricas, fill='toself', name=juego1, line_color='#667eea'))
-                fig_radar.add_trace(go.Scatterpolar(r=vals_j2, theta=nombres_metricas, fill='toself', name=juego2, line_color='#f093fb'))
+                fig_radar.add_trace(go.Scatterpolar(r=vals_j1, theta=nombres_metricas, fill='toself', name=juego1, line_color='#00d4ff', fillcolor='rgba(0,212,255,0.15)'))
+                fig_radar.add_trace(go.Scatterpolar(r=vals_j2, theta=nombres_metricas, fill='toself', name=juego2, line_color='#b44aff', fillcolor='rgba(180,74,255,0.15)'))
                 fig_radar.update_layout(
-                    template="plotly_dark", paper_bgcolor='rgba(15, 20, 40, 0.6)',
-                    polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0.2)'),
+                    template="plotly_dark", paper_bgcolor='rgba(5, 10, 24, 0.6)',
+                    polar=dict(radialaxis=dict(visible=False, range=[0, 100]), bgcolor='rgba(0,0,0,0.3)'),
                     margin=dict(t=20, b=20, l=30, r=30), legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
                 )
                 st.plotly_chart(fig_radar, use_container_width=True)
@@ -808,23 +915,96 @@ with tab1:
                 })
                 fig_barras = px.bar(
                     comp_df, x='Métrica', y='Valor', color='Juego', barmode='group',
-                    text_auto='.2s', color_discrete_sequence=['#667eea', '#f093fb'], template="plotly_dark"
+                    text_auto='.2s', color_discrete_sequence=['#00d4ff', '#b44aff'], template="plotly_dark"
                 )
                 fig_barras.update_layout(
-                    paper_bgcolor='rgba(15, 20, 40, 0.6)', plot_bgcolor='rgba(0,0,0,0.2)',
+                    paper_bgcolor='rgba(5, 10, 24, 0.6)', plot_bgcolor='rgba(0,0,0,0.3)',
                     margin=dict(t=20, b=20, l=10, r=10), legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="center", x=0.5)
                 )
                 st.plotly_chart(fig_barras, use_container_width=True)
                 
                 st.markdown(f"""
-                <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; border-left: 4px solid #34d399; margin-top: 10px;">
+                <div style="background: rgba(0,212,255,0.05); padding: 10px; border-radius: 8px; border-left: 3px solid #00ff88; margin-top: 10px;">
                     <p style="margin:0; font-size: 0.9rem;"><strong>🏆 Resumen Financiero:</strong></p>
-                    <p style="margin:0; font-size: 0.85rem; color: #c7d2fe;">{juego1}: <strong>${data_j1['monto_ventas_usd']:,.0f}</strong> ({data_j1['ratio_positividad']:.0%} Positivo)</p>
-                    <p style="margin:0; font-size: 0.85rem; color: #f093fb;">{juego2}: <strong>${data_j2['monto_ventas_usd']:,.0f}</strong> ({data_j2['ratio_positividad']:.0%} Positivo)</p>
+                    <p style="margin:0; font-size: 0.85rem; color: #00d4ff;">{juego1}: <strong>${data_j1['monto_ventas_usd']:,.0f}</strong> ({data_j1['ratio_positividad']:.0%} Positivo)</p>
+                    <p style="margin:0; font-size: 0.85rem; color: #b44aff;">{juego2}: <strong>${data_j2['monto_ventas_usd']:,.0f}</strong> ({data_j2['ratio_positividad']:.0%} Positivo)</p>
                 </div>
                 """, unsafe_allow_html=True)
         else:
             st.info("⚠️ Necesitas al menos 2 juegos filtrados para usar la herramienta de Benchmarking.")
+
+        # === NEW: TREEMAP DE MERCADO ===
+        st.markdown("---")
+        st.markdown("### 🗺️ Mapa de Mercado (Treemap)")
+        if len(df_filtered) > 0 and 'subgenero' in df_filtered.columns:
+            treemap_data = df_filtered.groupby(['subgenero', 'nombre'])['monto_ventas_usd'].sum().reset_index()
+            treemap_data = treemap_data[treemap_data['monto_ventas_usd'] > 0]
+            if len(treemap_data) > 0:
+                fig_tree = px.treemap(
+                    treemap_data, path=['subgenero', 'nombre'], values='monto_ventas_usd',
+                    color='monto_ventas_usd', color_continuous_scale=[[0,'#0a1628'],[0.3,'#00d4ff'],[0.7,'#b44aff'],[1,'#00ff88']],
+                    template="plotly_dark", labels={'monto_ventas_usd': 'Ventas (USD)'}
+                )
+                fig_tree.update_layout(
+                    paper_bgcolor='rgba(5, 10, 24, 0.6)', margin=dict(t=30, b=10, l=10, r=10), height=500,
+                    font=dict(family="DM Sans", size=12)
+                )
+                fig_tree.update_traces(
+                    hovertemplate="<b>%{label}</b><br>Ventas: $%{value:,.0f}<extra></extra>",
+                    textfont=dict(color="white")
+                )
+                st.plotly_chart(fig_tree, use_container_width=True)
+        
+        # === NEW: GAUGE + HEATMAP ROW ===
+        st.markdown("---")
+        col_gauge, col_heat = st.columns(2)
+        
+        with col_gauge:
+            st.markdown("### 🎯 Gauge de Satisfacción Global")
+            gauge_val = avg_positivity * 100 if not pd.isna(avg_positivity) else 0
+            fig_gauge = go.Figure(go.Indicator(
+                mode="gauge+number+delta",
+                value=gauge_val,
+                number={'suffix': '%', 'font': {'size': 40, 'color': '#e0f2fe', 'family': 'JetBrains Mono'}},
+                delta={'reference': 75, 'increasing': {'color': '#00ff88'}, 'decreasing': {'color': '#ff2d78'}},
+                gauge={
+                    'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': '#00d4ff', 'dtick': 20},
+                    'bar': {'color': '#00d4ff', 'thickness': 0.3},
+                    'bgcolor': 'rgba(0,0,0,0.3)',
+                    'borderwidth': 2, 'bordercolor': 'rgba(0, 212, 255, 0.3)',
+                    'steps': [
+                        {'range': [0, 40], 'color': 'rgba(255, 45, 120, 0.15)'},
+                        {'range': [40, 70], 'color': 'rgba(255, 183, 0, 0.1)'},
+                        {'range': [70, 100], 'color': 'rgba(0, 255, 136, 0.1)'}
+                    ],
+                    'threshold': {'line': {'color': '#00ff88', 'width': 3}, 'thickness': 0.8, 'value': 75}
+                }
+            ))
+            fig_gauge.update_layout(
+                paper_bgcolor='rgba(5, 10, 24, 0.6)', font=dict(color='#c8d6e5', family='DM Sans'),
+                height=300, margin=dict(t=30, b=10, l=30, r=30)
+            )
+            st.plotly_chart(fig_gauge, use_container_width=True)
+        
+        with col_heat:
+            st.markdown("### 🔥 Matriz de Correlación")
+            numeric_cols = ['monto_ventas_usd', 'cantidad_descargas', 'conteo_resenas', 'ratio_positividad']
+            available_numeric = [c for c in numeric_cols if c in df_filtered.columns]
+            if len(available_numeric) >= 2:
+                corr_matrix = df_filtered[available_numeric].corr()
+                labels_map = {'monto_ventas_usd': 'Ventas', 'cantidad_descargas': 'Descargas', 'conteo_resenas': 'Reseñas', 'ratio_positividad': 'Satisfacción'}
+                corr_matrix.columns = [labels_map.get(c, c) for c in corr_matrix.columns]
+                corr_matrix.index = [labels_map.get(c, c) for c in corr_matrix.index]
+                fig_heat = px.imshow(
+                    corr_matrix, text_auto='.2f', template="plotly_dark",
+                    color_continuous_scale=[[0,'#ff2d78'],[0.5,'#0a1628'],[1,'#00ff88']],
+                    aspect='auto'
+                )
+                fig_heat.update_layout(
+                    paper_bgcolor='rgba(5, 10, 24, 0.6)', font=dict(family='DM Sans', size=12),
+                    height=300, margin=dict(t=30, b=10, l=10, r=10)
+                )
+                st.plotly_chart(fig_heat, use_container_width=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TAB 2: SIMULADOR DE ESCENARIOS (Riesgo y Segmentación)
@@ -850,8 +1030,8 @@ with tab2:
         
         with col_in:
             st.markdown("""
-            <div style='background: rgba(102, 126, 234, 0.1); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.3);'>
-                <h4 style='color: #a5b4fc; margin-top: 0;'>1️⃣ Configura tu Estrategia</h4>
+            <div style='background: rgba(0, 212, 255, 0.05); padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(0, 212, 255, 0.2);'>
+                <h4 style='color: #00d4ff; margin-top: 0; font-family: Orbitron, sans-serif;'>1️⃣ Configura tu Estrategia</h4>
             </div>
             <br>
             """, unsafe_allow_html=True)
@@ -881,20 +1061,20 @@ with tab2:
                 
                 html_tarjetas = f"""
                 <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                    <div style="flex: 1; background: rgba(248, 113, 113, 0.1); border: 2px solid rgba(248, 113, 113, 0.4); border-radius: 12px; padding: 1.5rem; text-align: center;">
-                        <p style="color: #f87171; margin: 0; font-size: 0.8rem; font-weight: bold; text-transform: uppercase;">📉 Escenario Pesimista</p>
-                        <p style="font-size: 1.8rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'Space Mono', monospace;">{format_number(escenario_pesimista)}</p>
-                        <p style="color: #94a3b8; font-size: 0.75rem; margin: 0;">Tracción baja.</p>
+                    <div style="flex: 1; background: rgba(255, 45, 120, 0.05); border: 1px solid rgba(255, 45, 120, 0.3); border-radius: 10px; padding: 1.5rem; text-align: center;">
+                        <p style="color: #ff2d78; margin: 0; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; font-family:'Orbitron',sans-serif; letter-spacing:0.05em;">📉 Escenario Pesimista</p>
+                        <p style="font-size: 1.8rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'JetBrains Mono', monospace;">{format_number(escenario_pesimista)}</p>
+                        <p style="color: #64748b; font-size: 0.7rem; margin: 0;">Tracción baja.</p>
                     </div>
-                    <div style="flex: 1; background: linear-gradient(135deg, rgba(52, 211, 153, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%); border: 2px solid rgba(52, 211, 153, 0.6); border-radius: 12px; padding: 1.5rem; text-align: center; transform: scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
-                        <p style="color: #34d399; margin: 0; font-size: 0.9rem; font-weight: bold; text-transform: uppercase;">📊 Escenario Esperado</p>
-                        <p style="font-size: 2.2rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'Space Mono', monospace;">{format_number(escenario_realista)}</p>
-                        <p style="color: #94a3b8; font-size: 0.8rem; margin: 0;">Ingreso base proyectado.</p>
+                    <div style="flex: 1; background: linear-gradient(135deg, rgba(0, 255, 136, 0.08) 0%, rgba(0, 212, 255, 0.05) 100%); border: 1px solid rgba(0, 255, 136, 0.4); border-radius: 10px; padding: 1.5rem; text-align: center; transform: scale(1.05); box-shadow: 0 0 25px rgba(0,255,136,0.1);">
+                        <p style="color: #00ff88; margin: 0; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; font-family:'Orbitron',sans-serif; letter-spacing:0.05em;">📊 Escenario Esperado</p>
+                        <p style="font-size: 2.2rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'JetBrains Mono', monospace;">{format_number(escenario_realista)}</p>
+                        <p style="color: #64748b; font-size: 0.75rem; margin: 0;">Ingreso base proyectado.</p>
                     </div>
-                    <div style="flex: 1; background: rgba(96, 165, 250, 0.1); border: 2px solid rgba(96, 165, 250, 0.4); border-radius: 12px; padding: 1.5rem; text-align: center;">
-                        <p style="color: #60a5fa; margin: 0; font-size: 0.8rem; font-weight: bold; text-transform: uppercase;">🚀 Escenario Optimista</p>
-                        <p style="font-size: 1.8rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'Space Mono', monospace;">{format_number(escenario_optimista)}</p>
-                        <p style="color: #94a3b8; font-size: 0.75rem; margin: 0;">Si el juego se hace viral.</p>
+                    <div style="flex: 1; background: rgba(0, 212, 255, 0.05); border: 1px solid rgba(0, 212, 255, 0.3); border-radius: 10px; padding: 1.5rem; text-align: center;">
+                        <p style="color: #00d4ff; margin: 0; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; font-family:'Orbitron',sans-serif; letter-spacing:0.05em;">🚀 Escenario Optimista</p>
+                        <p style="font-size: 1.8rem; font-weight: 800; color: #ffffff; margin: 0.5rem 0; font-family: 'JetBrains Mono', monospace;">{format_number(escenario_optimista)}</p>
+                        <p style="color: #64748b; font-size: 0.7rem; margin: 0;">Si el juego se hace viral.</p>
                     </div>
                 </div>
                 """
@@ -903,11 +1083,11 @@ with tab2:
                 fig_risk = go.Figure(go.Funnel(
                     y=["Optimista (Techo)", "Esperado (Seguro)", "Pesimista (Piso)"],
                     x=[escenario_optimista, escenario_realista, escenario_pesimista],
-                    textinfo="value", marker={"color": ["#60a5fa", "#34d399", "#f87171"]}
+                    textinfo="value", marker={"color": ["#00d4ff", "#00ff88", "#ff2d78"]}
                 ))
                 fig_risk.update_layout(
                     title=f"Margen de Riesgo para un juego tipo {genero_elegido}",
-                    template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    template="plotly_dark", paper_bgcolor='rgba(5,10,24,0.6)', plot_bgcolor='rgba(0,0,0,0.3)',
                     height=250, margin=dict(t=30, b=10, l=10, r=10)
                 )
                 st.plotly_chart(fig_risk, use_container_width=True)
@@ -1021,26 +1201,26 @@ with tab4:
             pol = float(ultimo_registro['polaridad_roberta']) if pd.notna(ultimo_registro['polaridad_roberta']) else 0.0
             
             if pol > 0.05:
-                color, icono, label = "#34d399", "😀", "POSITIVO"
+                color, icono, label = "#00ff88", "😀", "POSITIVO"
             elif pol < -0.05:
-                color, icono, label = "#f87171", "😡", "NEGATIVO"
+                color, icono, label = "#ff2d78", "😡", "NEGATIVO"
             else:
-                color, icono, label = "#fbbf24", "😐", "NEUTRAL"
+                color, icono, label = "#ffb700", "😐", "NEUTRAL"
                 
             kpi_html = f"""
             <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                <div style="flex: 1.5; background: linear-gradient(135deg, rgba(15,20,40,0.9) 0%, rgba(26,31,58,0.9) 100%); border: 2px solid {color}; border-radius: 16px; padding: 1.5rem; text-align: center; box-shadow: 0 0 20px {color}33;">
-                    <p style="margin:0; color:#94a3b8; font-size:0.8rem; text-transform:uppercase; font-weight:600;">Veredicto VADER</p>
-                    <p style="margin:0.5rem 0; font-size:2.2rem; font-weight:900; color:{color}; font-family:'Space Mono', monospace;">{icono} {label}</p>
-                    <p style="margin:0; color:#e0e7ff;">Polaridad Neta: <strong style="color:{color}">{pol:+.3f}</strong></p>
+                <div style="flex: 1.5; background: linear-gradient(135deg, rgba(5,10,24,0.95) 0%, rgba(10,22,40,0.95) 100%); border: 1px solid {color}; border-radius: 12px; padding: 1.5rem; text-align: center; box-shadow: 0 0 25px {color}22;">
+                    <p style="margin:0; color:#64748b; font-size:0.75rem; text-transform:uppercase; font-weight:600; font-family:'Orbitron',sans-serif; letter-spacing:0.1em;">Veredicto VADER</p>
+                    <p style="margin:0.5rem 0; font-size:2rem; font-weight:900; color:{color}; font-family:'JetBrains Mono', monospace;">{icono} {label}</p>
+                    <p style="margin:0; color:#c8d6e5;">Polaridad Neta: <strong style="color:{color}">{pol:+.3f}</strong></p>
                 </div>
-                <div style="flex: 1; background: rgba(102, 126, 234, 0.1); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 16px; padding: 1.5rem; text-align: center;">
-                    <p style="margin:0; color:#a5b4fc; font-size:0.8rem; text-transform:uppercase; font-weight:600;">Tema Principal Hoy</p>
-                    <p style="margin:0.5rem 0; font-size:1.8rem; font-weight:800; color:#ffffff; font-family:'Space Mono', monospace; text-transform: uppercase;">"{ultimo_registro['tema_principal']}"</p>
+                <div style="flex: 1; background: rgba(0, 212, 255, 0.05); border: 1px solid rgba(0, 212, 255, 0.2); border-radius: 12px; padding: 1.5rem; text-align: center;">
+                    <p style="margin:0; color:#00d4ff; font-size:0.75rem; text-transform:uppercase; font-weight:600; font-family:'Orbitron',sans-serif; letter-spacing:0.1em;">Tema Principal Hoy</p>
+                    <p style="margin:0.5rem 0; font-size:1.6rem; font-weight:800; color:#ffffff; font-family:'JetBrains Mono', monospace; text-transform: uppercase;">"{ultimo_registro['tema_principal']}"</p>
                 </div>
-                <div style="flex: 1; background: rgba(102, 126, 234, 0.1); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 16px; padding: 1.5rem; text-align: center;">
-                    <p style="margin:0; color:#a5b4fc; font-size:0.8rem; text-transform:uppercase; font-weight:600;">Jugadores Activos</p>
-                    <p style="margin:0.5rem 0; font-size:1.8rem; font-weight:800; color:#ffffff; font-family:'Space Mono', monospace;">{ultimo_registro['jugadores_activos']:,}</p>
+                <div style="flex: 1; background: rgba(180, 74, 255, 0.05); border: 1px solid rgba(180, 74, 255, 0.2); border-radius: 12px; padding: 1.5rem; text-align: center;">
+                    <p style="margin:0; color:#b44aff; font-size:0.75rem; text-transform:uppercase; font-weight:600; font-family:'Orbitron',sans-serif; letter-spacing:0.1em;">Jugadores Activos</p>
+                    <p style="margin:0.5rem 0; font-size:1.6rem; font-weight:800; color:#ffffff; font-family:'JetBrains Mono', monospace;">{ultimo_registro['jugadores_activos']:,}</p>
                 </div>
             </div>
             """
@@ -1054,22 +1234,22 @@ with tab4:
         
         fig_hist.add_trace(
             go.Scatter(x=df_juego_nlp['fk_tiempo'], y=df_juego_nlp['jugadores_activos'], 
-                       name="Jugadores Activos", mode="lines+markers", line=dict(color="#a5b4fc", width=3), marker=dict(size=8)),
+                       name="Jugadores Activos", mode="lines+markers", line=dict(color="#00d4ff", width=3), marker=dict(size=8)),
             secondary_y=False,
         )
         
         fig_hist.add_trace(
             go.Scatter(x=df_juego_nlp['fk_tiempo'], y=df_juego_nlp['polaridad_roberta'], 
-                       name="Polaridad NLP (Sentimiento)", mode="lines+markers", fill='tozeroy', line=dict(color="#34d399", width=2), marker=dict(size=8)),
+                       name="Polaridad NLP (Sentimiento)", mode="lines+markers", fill='tozeroy', line=dict(color="#00ff88", width=2), fillcolor='rgba(0,255,136,0.05)', marker=dict(size=8)),
             secondary_y=True,
         )
         
         fig_hist.update_layout(
-            template="plotly_dark", paper_bgcolor='rgba(15, 20, 40, 0.6)', plot_bgcolor='rgba(0, 0, 0, 0.2)',
+            template="plotly_dark", paper_bgcolor='rgba(5, 10, 24, 0.6)', plot_bgcolor='rgba(0, 0, 0, 0.3)',
             margin=dict(t=40, b=40, l=40, r=40), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
         
-        fig_hist.update_yaxes(title_text="Cantidad de Jugadores", secondary_y=False, gridcolor='rgba(102, 126, 234, 0.1)')
+        fig_hist.update_yaxes(title_text="Cantidad de Jugadores", secondary_y=False, gridcolor='rgba(0, 212, 255, 0.08)')
         fig_hist.update_yaxes(title_text="Índice de Polaridad (-1 a 1)", secondary_y=True, showgrid=False)
         fig_hist.update_xaxes(type='category') 
 
@@ -1079,17 +1259,127 @@ with tab4:
         st.warning("⚠️ No hay datos NLP almacenados en el Data Warehouse (tabla hechos_sentimiento). Ejecuta tu proceso Pentaho primero.")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# FOOTER
+# TAB 5: GAME EXPLORER — CATÁLOGO VISUAL ESTILO STEAM
+# ═══════════════════════════════════════════════════════════════════════════
+
+with tab5:
+    st.markdown("## 🎮 Game Explorer — Catálogo Visual")
+    st.markdown("Explora los juegos del Data Warehouse con imágenes, links directos a Steam Store y métricas clave.")
+    
+    if df_filtered.empty:
+        st.warning("⚠️ No hay datos disponibles con los filtros actuales.")
+    else:
+        # Controls
+        col_sort, col_n, col_order = st.columns(3)
+        with col_sort:
+            sort_by = st.selectbox("Ordenar por:", ["monto_ventas_usd", "cantidad_descargas", "ratio_positividad", "conteo_resenas"], 
+                                   format_func=lambda x: {"monto_ventas_usd": "💰 Ventas", "cantidad_descargas": "📥 Descargas", "ratio_positividad": "⭐ Satisfacción", "conteo_resenas": "💬 Reseñas"}.get(x, x),
+                                   key="explorer_sort")
+        with col_n:
+            cards_n = st.number_input("Cantidad de juegos:", min_value=3, max_value=min(60, len(df_filtered)), value=min(12, len(df_filtered)), step=3, key="explorer_n")
+        with col_order:
+            order_dir = st.radio("Orden:", ["Descendente", "Ascendente"], horizontal=True, key="explorer_order")
+        
+        # Get unique games
+        explorer_df = df_filtered.groupby(['nombre']).agg({
+            'monto_ventas_usd': 'sum',
+            'cantidad_descargas': 'sum',
+            'ratio_positividad': 'mean',
+            'conteo_resenas': 'sum',
+            'subgenero': 'first',
+            'desarrollador': 'first'
+        }).reset_index()
+        
+        if 'fk_juego' in df_filtered.columns:
+            appid_map = df_filtered.groupby('nombre')['fk_juego'].first()
+            explorer_df['appid'] = explorer_df['nombre'].map(appid_map)
+        elif 'appid' in df_filtered.columns:
+            appid_map = df_filtered.groupby('nombre')['appid'].first()
+            explorer_df['appid'] = explorer_df['nombre'].map(appid_map)
+        else:
+            explorer_df['appid'] = None
+        
+        ascending = (order_dir == "Ascendente")
+        explorer_df = explorer_df.sort_values(sort_by, ascending=ascending).head(int(cards_n))
+        
+        st.markdown("---")
+        
+        # Render cards in 3-column grid
+        cols_per_row = 3
+        rows = [explorer_df.iloc[i:i+cols_per_row] for i in range(0, len(explorer_df), cols_per_row)]
+        
+        for row_df in rows:
+            cols = st.columns(cols_per_row)
+            for idx, (_, game) in enumerate(row_df.iterrows()):
+                with cols[idx]:
+                    appid = game.get('appid', None)
+                    img_url = get_steam_image(appid) if pd.notna(appid) else ""
+                    store_url = get_steam_url(appid) if pd.notna(appid) else "#"
+                    ratio = game['ratio_positividad'] if pd.notna(game['ratio_positividad']) else 0
+                    ratio_pct = ratio * 100
+                    
+                    # Color for satisfaction bar
+                    if ratio >= 0.85:
+                        bar_color = "#00ff88"
+                    elif ratio >= 0.70:
+                        bar_color = "#00d4ff"
+                    elif ratio >= 0.40:
+                        bar_color = "#ffb700"
+                    else:
+                        bar_color = "#ff2d78"
+                    
+                    nombre_clean = str(game['nombre'])[:40]
+                    sub = str(game['subgenero']) if pd.notna(game['subgenero']) else "N/A"
+                    dev = str(game['desarrollador'])[:25] if pd.notna(game['desarrollador']) else "N/A"
+                    
+                    card_html = f"""
+                    <div style="background: linear-gradient(180deg, rgba(5,10,24,0.95) 0%, rgba(10,22,40,0.95) 100%); border: 1px solid rgba(0,212,255,0.15); border-radius: 10px; overflow: hidden; margin-bottom: 1rem; transition: all 0.3s ease; box-shadow: 0 2px 15px rgba(0,0,0,0.3);">
+                        <img src="{img_url}" style="width:100%; height:140px; object-fit:cover; display:block; border-bottom: 1px solid rgba(0,212,255,0.1);" onerror="this.style.display='none'">
+                        <div style="padding: 1rem;">
+                            <p style="margin:0 0 4px 0; font-family:'Orbitron',sans-serif; font-size:0.8rem; font-weight:700; color:#e0f2fe; line-height:1.3;">{nombre_clean}</p>
+                            <div style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap;">
+                                <span style="background:rgba(0,212,255,0.15); border:1px solid rgba(0,212,255,0.3); color:#00d4ff; padding:1px 6px; border-radius:3px; font-size:0.65rem; font-weight:600;">{sub}</span>
+                                <span style="color:#64748b; font-size:0.65rem;">{dev}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                                <span style="color:#64748b; font-size:0.7rem;">💰 {format_number(game['monto_ventas_usd'])}</span>
+                                <span style="color:#64748b; font-size:0.7rem;">📥 {format_count(game['cantidad_descargas'])}</span>
+                            </div>
+                            <div style="background:rgba(255,255,255,0.05); border-radius:4px; height:6px; overflow:hidden; margin-bottom:6px;">
+                                <div style="background:{bar_color}; width:{min(ratio_pct, 100):.0f}%; height:100%; border-radius:4px; box-shadow: 0 0 6px {bar_color}44;"></div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="color:{bar_color}; font-size:0.7rem; font-weight:700;">⭐ {ratio_pct:.1f}%</span>
+                                <a href="{store_url}" target="_blank" style="color:#00d4ff; font-size:0.65rem; text-decoration:none; font-family:'Orbitron',sans-serif; border:1px solid rgba(0,212,255,0.3); padding:2px 8px; border-radius:4px; transition: all 0.2s;">VER EN STEAM →</a>
+                            </div>
+                        </div>
+                    </div>
+                    """
+                    st.markdown(card_html, unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FOOTER — NEON ENTERPRISE
 # ═══════════════════════════════════════════════════════════════════════════
 
 st.markdown("---")
-st.markdown("""
-<div style="text-align: center; padding: 2rem 0; color: #64748b;">
-    <p style="margin: 0; font-size: 0.9rem;">
-        <strong>Steam Analytics v4.0</strong> · Plataforma de Inteligencia de Mercado
+st.markdown(f"""
+<div style="text-align: center; padding: 2rem 0;">
+    <div style="width:150px; height:1px; background:linear-gradient(90deg,transparent,#00d4ff,transparent); margin:0 auto 1.5rem;"></div>
+    <p style="margin: 0; font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; letter-spacing:0.1em;">
+        <span style="background:linear-gradient(135deg,#00d4ff,#b44aff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">STEAM ANALYTICS</span>
+        <span style="color:#334155;"> · </span>
+        <span style="color:#64748b;">Enterprise v5.0</span>
     </p>
-    <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem;">
-        Powered by Streamlit · PostgreSQL · Plotly · VADER
+    <p style="margin: 0.5rem 0 0 0; font-size: 0.75rem; color: #475569;">
+        <span style="border:1px solid rgba(0,212,255,0.2); padding:2px 8px; border-radius:3px; margin:0 3px; color:#00d4ff;">Streamlit</span>
+        <span style="border:1px solid rgba(180,74,255,0.2); padding:2px 8px; border-radius:3px; margin:0 3px; color:#b44aff;">PostgreSQL</span>
+        <span style="border:1px solid rgba(0,255,136,0.2); padding:2px 8px; border-radius:3px; margin:0 3px; color:#00ff88;">Plotly</span>
+        <span style="border:1px solid rgba(255,183,0,0.2); padding:2px 8px; border-radius:3px; margin:0 3px; color:#ffb700;">VADER NLP</span>
+        <span style="border:1px solid rgba(255,45,120,0.2); padding:2px 8px; border-radius:3px; margin:0 3px; color:#ff2d78;">RandomForest</span>
     </p>
+    <p style="margin: 0.8rem 0 0 0; font-size: 0.65rem; color: #334155; font-family:'Orbitron',sans-serif; letter-spacing:0.15em;">
+        PLATAFORMA DE INTELIGENCIA DE MERCADO · {datetime.now().strftime('%Y')}
+    </p>
+    <div style="width:150px; height:1px; background:linear-gradient(90deg,transparent,#b44aff,transparent); margin:1rem auto 0;"></div>
 </div>
 """, unsafe_allow_html=True)
