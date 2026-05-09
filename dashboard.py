@@ -588,9 +588,30 @@ def generar_pdf(df_filtered, ventas, descargas, ratio, juegos_count):
             
     # Pie de página final
     pdf.ln(10)
+    
+    # 5. INSIGHTS AUTOMÁTICOS
+    pdf.set_font("Arial", 'B', 14)
+    pdf.set_text_color(26, 31, 58)
+    pdf.cell(0, 10, txt="4. Hallazgos Clave (Insights IA)", ln=True)
+    pdf.ln(2)
+    
+    insights_pdf = generar_insights(df_filtered)
+    pdf.set_font("Arial", '', 10)
+    for ins in insights_pdf:
+        # Remove markdown bold markers for PDF
+        ins_clean = ins.replace("**", "").encode('latin-1', 'ignore').decode('latin-1')
+        pdf.set_fill_color(245, 247, 250)
+        y_ins = pdf.get_y()
+        pdf.set_fill_color(102, 126, 234)
+        pdf.rect(10, y_ins, 2, 7, 'F')
+        pdf.set_xy(14, y_ins)
+        pdf.set_text_color(50, 50, 50)
+        pdf.cell(0, 7, txt=ins_clean, ln=True)
+    
+    pdf.ln(10)
     pdf.set_font("Arial", 'I', 8)
     pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 10, txt="Generado por Steam Analytics BI v4.0 - Documento Confidencial", align='C')
+    pdf.cell(0, 10, txt="Generado por Steam Analytics BI v6.0 - Documento Confidencial", align='C')
     
     return bytes(pdf.output())
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1222,6 +1243,110 @@ with tab1:
                 )
                 st.plotly_chart(fig_heat, use_container_width=True)
 
+        # === SUNBURST CHART — DRILL-DOWN JERÁRQUICO ===
+        st.markdown("---")
+        st.markdown("### 🌐 Sunburst — Participación de Mercado (Drill-down)")
+        st.markdown("Haz clic en un segmento para explorar la jerarquía: **Género → Desarrollador → Juego**")
+        if len(df_filtered) > 0 and 'desarrollador' in df_filtered.columns:
+            sun_data = df_filtered.groupby(['subgenero', 'desarrollador', 'nombre'])['monto_ventas_usd'].sum().reset_index()
+            sun_data = sun_data[sun_data['monto_ventas_usd'] > 0]
+            if len(sun_data) > 0:
+                fig_sun = px.sunburst(
+                    sun_data, path=['subgenero', 'desarrollador', 'nombre'], values='monto_ventas_usd',
+                    color='monto_ventas_usd', color_continuous_scale=[[0,'#0a1628'],[0.3,'#00d4ff'],[0.7,'#b44aff'],[1,'#00ff88']],
+                    template="plotly_dark", labels={'monto_ventas_usd': 'Ventas (USD)'}
+                )
+                fig_sun.update_layout(
+                    paper_bgcolor='rgba(5,10,24,0.6)', margin=dict(t=30, b=10, l=10, r=10), height=550,
+                    font=dict(family="DM Sans", size=12)
+                )
+                fig_sun.update_traces(
+                    hovertemplate="<b>%{label}</b><br>Ventas: $%{value:,.0f}<br>%{percentRoot:.1%} del total<extra></extra>",
+                    textfont=dict(color="white")
+                )
+                st.plotly_chart(fig_sun, use_container_width=True)
+
+        # === ANÁLISIS DE PARETO (80/20) ===
+        st.markdown("---")
+        col_pareto, col_box = st.columns(2)
+        
+        with col_pareto:
+            st.markdown("### 📐 Análisis de Pareto (Regla 80/20)")
+            st.markdown("¿Qué porcentaje de juegos genera el 80% de las ventas?")
+            pareto_sales = df_filtered.groupby('nombre')['monto_ventas_usd'].sum().sort_values(ascending=False).reset_index()
+            if len(pareto_sales) > 0:
+                pareto_sales['cumsum'] = pareto_sales['monto_ventas_usd'].cumsum()
+                pareto_total = pareto_sales['monto_ventas_usd'].sum()
+                pareto_sales['pct_acumulado'] = (pareto_sales['cumsum'] / pareto_total * 100) if pareto_total > 0 else 0
+                pareto_sales['rank'] = range(1, len(pareto_sales) + 1)
+                
+                fig_pareto = make_subplots(specs=[[{"secondary_y": True}]])
+                fig_pareto.add_trace(
+                    go.Bar(x=pareto_sales['rank'], y=pareto_sales['monto_ventas_usd'], name="Ventas", 
+                           marker_color='#00d4ff', opacity=0.8, hovertemplate="<b>%{customdata}</b><br>$%{y:,.0f}<extra></extra>",
+                           customdata=pareto_sales['nombre']),
+                    secondary_y=False
+                )
+                fig_pareto.add_trace(
+                    go.Scatter(x=pareto_sales['rank'], y=pareto_sales['pct_acumulado'], name="% Acumulado",
+                               line=dict(color='#00ff88', width=3), mode='lines', hovertemplate="%{y:.1f}%<extra></extra>"),
+                    secondary_y=True
+                )
+                fig_pareto.add_hline(y=80, secondary_y=True, line_dash="dash", line_color="#ff2d78", opacity=0.6,
+                                     annotation_text="80%", annotation_position="top right")
+                fig_pareto.update_layout(
+                    template="plotly_dark", paper_bgcolor='rgba(5,10,24,0.6)', plot_bgcolor='rgba(0,0,0,0.3)',
+                    height=400, margin=dict(t=20, b=40, l=40, r=40), showlegend=True,
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5,
+                                bgcolor='rgba(5,10,24,0.9)', bordercolor='rgba(0,212,255,0.2)')
+                )
+                fig_pareto.update_yaxes(title_text="Ventas (USD)", secondary_y=False, tickformat="$,.0s", gridcolor='rgba(0,212,255,0.08)')
+                fig_pareto.update_yaxes(title_text="% Acumulado", secondary_y=True, showgrid=False, range=[0, 105])
+                fig_pareto.update_xaxes(title_text="Ranking de Juegos", gridcolor='rgba(0,212,255,0.08)')
+                st.plotly_chart(fig_pareto, use_container_width=True)
+        
+        # === BOX PLOT POR CATEGORÍA ===
+        with col_box:
+            st.markdown("### 📦 Distribución Estadística por Categoría")
+            st.markdown("Outliers, mediana y rango intercuartílico de ventas por género")
+            if len(df_filtered) > 0:
+                fig_box = px.box(
+                    df_filtered, x='subgenero', y='monto_ventas_usd', color='subgenero',
+                    template="plotly_dark", labels={'subgenero': 'Categoría', 'monto_ventas_usd': 'Ventas (USD)'},
+                    color_discrete_sequence=['#00d4ff','#b44aff','#00ff88','#ff2d78','#ffb700','#7dd3fc','#a78bfa','#34d399']
+                )
+                fig_box.update_layout(
+                    paper_bgcolor='rgba(5,10,24,0.6)', plot_bgcolor='rgba(0,0,0,0.3)',
+                    height=400, margin=dict(t=20, b=60, l=40, r=20), showlegend=False,
+                    xaxis=dict(tickangle=-35, gridcolor='rgba(0,212,255,0.08)'),
+                    yaxis=dict(gridcolor='rgba(0,212,255,0.08)', tickformat="$,.0s")
+                )
+                st.plotly_chart(fig_box, use_container_width=True)
+
+        # === FUNNEL DE CONVERSIÓN DEL MERCADO ===
+        st.markdown("---")
+        st.markdown("### 🔽 Funnel de Conversión del Mercado")
+        st.markdown("Muestra la eficiencia de cada etapa: **Descargas → Reseñas → Ventas generadas**")
+        total_dl_funnel = df_filtered['cantidad_descargas'].sum()
+        total_rev_funnel = df_filtered['conteo_resenas'].sum()
+        total_sales_funnel = df_filtered['monto_ventas_usd'].sum()
+        
+        if total_dl_funnel > 0:
+            fig_funnel = go.Figure(go.Funnel(
+                y=["📥 Descargas Totales", "💬 Reseñas Generadas", "💰 Ventas Estimadas (USD)"],
+                x=[total_dl_funnel, total_rev_funnel, total_sales_funnel],
+                textinfo="value+percent initial",
+                marker={"color": ["#00d4ff", "#b44aff", "#00ff88"]},
+                connector={"line": {"color": "rgba(0,212,255,0.2)", "width": 2}},
+                textfont=dict(color="white", size=13, family="JetBrains Mono")
+            ))
+            fig_funnel.update_layout(
+                template="plotly_dark", paper_bgcolor='rgba(5,10,24,0.6)', plot_bgcolor='rgba(0,0,0,0.3)',
+                height=320, margin=dict(t=20, b=20, l=10, r=10),
+                font=dict(family="DM Sans", size=12)
+            )
+            st.plotly_chart(fig_funnel, use_container_width=True)
+
 # ═══════════════════════════════════════════════════════════════════════════
 # TAB 2: SIMULADOR DE ESCENARIOS (Riesgo y Segmentación)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1369,6 +1494,20 @@ with tab3:
         st.markdown("### 📥 Exportación Ejecutiva")
         csv = display_df.to_csv(index=False).encode('utf-8')
         st.download_button(label="📄 Descargar Reporte Actual (CSV)", data=csv, file_name='reporte_steam_analytics.csv', mime='text/csv', type="primary")
+        
+        st.markdown("---")
+        with st.expander("📈 Estadísticas Descriptivas Completas (Data Profiling)"):
+            st.markdown("Análisis estadístico automático de las variables numéricas disponibles en el filtro actual.")
+            stat_cols = ['monto_ventas_usd', 'cantidad_descargas', 'conteo_resenas', 'votos_positivos', 'votos_negativos', 'ratio_positividad']
+            stat_avail = [c for c in stat_cols if c in df_filtered.columns]
+            if stat_avail:
+                desc = df_filtered[stat_avail].describe().T
+                desc.columns = ['Registros', 'Media', 'Desv. Estándar', 'Mínimo', 'Q1 (25%)', 'Mediana (50%)', 'Q3 (75%)', 'Máximo']
+                labels_desc = {'monto_ventas_usd': '💰 Ventas (USD)', 'cantidad_descargas': '📥 Descargas', 'conteo_resenas': '💬 Reseñas', 'votos_positivos': '👍 Votos +', 'votos_negativos': '👎 Votos -', 'ratio_positividad': '⭐ Satisfacción'}
+                desc.index = [labels_desc.get(i, i) for i in desc.index]
+                st.dataframe(desc.style.format("{:,.2f}"), use_container_width=True)
+            else:
+                st.info("No hay columnas numéricas disponibles para describir.")
     else:
         st.info("👆 Selecciona al menos una columna para visualizar los datos.")
     
@@ -1470,6 +1609,83 @@ with tab4:
         fig_hist.update_xaxes(type='category') 
 
         st.plotly_chart(fig_hist, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # === DISTRIBUCIÓN DE SENTIMIENTO + COMPARATIVA MULTI-JUEGO ===
+        col_nlp_pie, col_nlp_compare = st.columns(2)
+        
+        with col_nlp_pie:
+            st.markdown("### 🎭 Distribución de Sentimiento Global")
+            st.markdown("Porcentaje de registros positivos, neutrales y negativos en toda la base NLP.")
+            if 'polaridad_roberta' in df_nlp.columns:
+                pos_count = (df_nlp['polaridad_roberta'] > 0.05).sum()
+                neg_count = (df_nlp['polaridad_roberta'] < -0.05).sum()
+                neu_count = len(df_nlp) - pos_count - neg_count
+                sent_df = pd.DataFrame({
+                    'Sentimiento': ['😀 Positivo', '😐 Neutral', '😡 Negativo'],
+                    'Cantidad': [pos_count, neu_count, neg_count]
+                })
+                fig_sent_pie = px.pie(sent_df, values='Cantidad', names='Sentimiento', hole=0.5,
+                                      template="plotly_dark",
+                                      color_discrete_sequence=['#00ff88', '#ffb700', '#ff2d78'])
+                fig_sent_pie.update_layout(
+                    paper_bgcolor='rgba(5,10,24,0.6)',
+                    legend=dict(bgcolor='rgba(5,10,24,0.9)', bordercolor='rgba(0,212,255,0.2)', borderwidth=1),
+                    margin=dict(t=10, b=10, l=10, r=10), height=320
+                )
+                fig_sent_pie.update_traces(textposition='inside', textinfo='percent+label',
+                                           hovertemplate="<b>%{label}</b><br>Registros: %{value:,}<br>%{percent}<extra></extra>")
+                st.plotly_chart(fig_sent_pie, use_container_width=True)
+        
+        with col_nlp_compare:
+            st.markdown("### 📊 Comparativa de Polaridad — Todos los Juegos")
+            st.markdown("Ranking de sentimiento promedio por título analizado.")
+            if 'polaridad_roberta' in df_nlp.columns:
+                compare_nlp = df_nlp.groupby('nombre').agg(
+                    polaridad_media=('polaridad_roberta', 'mean'),
+                    registros=('polaridad_roberta', 'count')
+                ).reset_index().sort_values('polaridad_media', ascending=True)
+                
+                colors_nlp = ['#00ff88' if v > 0.05 else '#ff2d78' if v < -0.05 else '#ffb700' for v in compare_nlp['polaridad_media']]
+                
+                fig_nlp_bar = go.Figure(go.Bar(
+                    x=compare_nlp['polaridad_media'], y=compare_nlp['nombre'],
+                    orientation='h', marker_color=colors_nlp,
+                    text=compare_nlp['polaridad_media'].apply(lambda x: f"{x:+.3f}"),
+                    textposition='outside', textfont=dict(color='#c8d6e5', size=10, family='JetBrains Mono'),
+                    hovertemplate="<b>%{y}</b><br>Polaridad: %{x:+.3f}<br>Registros: %{customdata}<extra></extra>",
+                    customdata=compare_nlp['registros']
+                ))
+                fig_nlp_bar.add_vline(x=0, line_dash="dash", line_color="rgba(255,255,255,0.3)")
+                fig_nlp_bar.update_layout(
+                    template="plotly_dark", paper_bgcolor='rgba(5,10,24,0.6)', plot_bgcolor='rgba(0,0,0,0.3)',
+                    height=320, margin=dict(t=10, b=20, l=10, r=50),
+                    xaxis=dict(title="Polaridad Promedio", gridcolor='rgba(0,212,255,0.08)', range=[-1, 1]),
+                    yaxis=dict(tickfont=dict(size=10))
+                )
+                st.plotly_chart(fig_nlp_bar, use_container_width=True)
+        
+        # === CORRELACIÓN JUGADORES vs SENTIMIENTO ===
+        st.markdown("---")
+        st.markdown("### 🔗 Correlación: Jugadores Activos vs. Sentimiento")
+        st.markdown("¿Los juegos con más jugadores tienden a tener mejor sentimiento?")
+        if 'jugadores_activos' in df_nlp.columns and 'polaridad_roberta' in df_nlp.columns:
+            fig_corr_nlp = px.scatter(
+                df_nlp, x='jugadores_activos', y='polaridad_roberta',
+                color='nombre', template="plotly_dark", trendline="ols",
+                labels={'jugadores_activos': 'Jugadores Activos', 'polaridad_roberta': 'Polaridad NLP'},
+                hover_name='nombre',
+                color_discrete_sequence=['#00d4ff','#b44aff','#00ff88','#ff2d78','#ffb700','#7dd3fc','#a78bfa']
+            )
+            fig_corr_nlp.update_layout(
+                paper_bgcolor='rgba(5,10,24,0.6)', plot_bgcolor='rgba(0,0,0,0.3)',
+                height=380, margin=dict(t=20, b=40, l=40, r=40),
+                xaxis=dict(gridcolor='rgba(0,212,255,0.08)', tickformat=','),
+                yaxis=dict(gridcolor='rgba(0,212,255,0.08)'),
+                legend=dict(bgcolor='rgba(5,10,24,0.9)', bordercolor='rgba(0,212,255,0.2)', borderwidth=1)
+            )
+            st.plotly_chart(fig_corr_nlp, use_container_width=True)
             
     else:
         st.warning("⚠️ No hay datos NLP almacenados en el Data Warehouse (tabla hechos_sentimiento). Ejecuta tu proceso Pentaho primero.")
@@ -1584,7 +1800,7 @@ st.markdown(f"""
     <p style="margin: 0; font-family:'Orbitron',sans-serif; font-size:0.85rem; font-weight:700; letter-spacing:0.1em;">
         <span style="background:linear-gradient(135deg,#00d4ff,#b44aff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">STEAM ANALYTICS</span>
         <span style="color:#334155;"> · </span>
-        <span style="color:#64748b;">Enterprise v5.0</span>
+        <span style="color:#64748b;">Enterprise v6.0</span>
     </p>
     <p style="margin: 0.5rem 0 0 0; font-size: 0.75rem; color: #475569;">
         <span style="border:1px solid rgba(0,212,255,0.2); padding:2px 8px; border-radius:3px; margin:0 3px; color:#00d4ff;">Streamlit</span>
