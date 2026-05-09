@@ -370,6 +370,44 @@ def format_count(num):
         return f"{num / 1e3:.2f}K"
     return f"{num:,.0f}"
 
+def generar_insights(df_f):
+    """Genera frases automáticas de insights clave a partir de los datos filtrados."""
+    insights = []
+    if df_f.empty:
+        return ["⚠️ No hay datos para generar insights."]
+    # Top juego por ventas
+    top_game = df_f.loc[df_f['monto_ventas_usd'].idxmax()]
+    insights.append(f"🏆 El juego con **más ventas** es **{top_game['nombre']}** con **{format_number(top_game['monto_ventas_usd'])}**")
+    # Género más rentable
+    genre_sales = df_f.groupby('subgenero')['monto_ventas_usd'].sum()
+    top_genre = genre_sales.idxmax()
+    insights.append(f"🎮 El género **más rentable** es **{top_genre}** con **{format_number(genre_sales.max())}** en ventas totales")
+    # Pareto: cuántos juegos hacen el 80%
+    sorted_sales = df_f.groupby('nombre')['monto_ventas_usd'].sum().sort_values(ascending=False)
+    cumsum = sorted_sales.cumsum()
+    total = sorted_sales.sum()
+    if total > 0:
+        n_80 = (cumsum <= total * 0.8).sum() + 1
+        pct_games = (n_80 / len(sorted_sales)) * 100
+        insights.append(f"📊 El **{pct_games:.0f}%** de los juegos ({n_80}) genera el **80%** de las ventas totales")
+    # Satisfacción promedio
+    avg_sat = df_f['ratio_positividad'].mean()
+    if avg_sat >= 0.80:
+        insights.append(f"😀 La satisfacción promedio es **{avg_sat:.1%}** — el mercado está **muy saludable**")
+    elif avg_sat >= 0.60:
+        insights.append(f"😐 La satisfacción promedio es **{avg_sat:.1%}** — el mercado es **competitivo**")
+    else:
+        insights.append(f"😟 La satisfacción promedio es **{avg_sat:.1%}** — el mercado muestra **señales de riesgo**")
+    # Juego con más descargas
+    top_dl = df_f.loc[df_f['cantidad_descargas'].idxmax()]
+    insights.append(f"📥 El juego **más descargado** es **{top_dl['nombre']}** con **{format_count(top_dl['cantidad_descargas'])}** descargas")
+    # Ingreso promedio por juego
+    n_juegos = df_f['nombre'].nunique()
+    if n_juegos > 0:
+        avg_rev = total / n_juegos if total > 0 else 0
+        insights.append(f"💵 Ingreso promedio por título: **{format_number(avg_rev)}**")
+    return insights
+
 def get_steam_image(appid):
     """Generate Steam CDN header capsule image URL."""
     return f"https://cdn.akamai.steamstatic.com/steam/apps/{appid}/header.jpg"
@@ -636,7 +674,7 @@ with st.sidebar:
     <div style="text-align:center; padding: 1rem 0;">
         <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg" width="45" style="filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.5));">
         <p style="font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:700; margin:0.5rem 0 0 0; background:linear-gradient(135deg,#00d4ff,#b44aff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">STEAM ANALYTICS</p>
-        <p style="font-size:0.7rem; color:#64748b; letter-spacing:0.1em; font-family:'Orbitron',sans-serif;">ENTERPRISE v5.0</p>
+        <p style="font-size:0.7rem; color:#64748b; letter-spacing:0.1em; font-family:'Orbitron',sans-serif;">ENTERPRISE v6.0</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -699,10 +737,11 @@ with st.sidebar:
     st.markdown("---")
     with st.expander("ℹ️ Acerca del Dashboard"):
         st.markdown("""
-        **Steam Analytics Enterprise v5.0**
+        **Steam Analytics Enterprise v6.0**
         Plataforma de inteligencia de mercado para análisis de videojuegos en Steam.
-        - 📈 Análisis en tiempo real
-        - 📊 Visualizaciones interactivas  
+        - 🏠 Resumen Ejecutivo con Insights IA
+        - 📈 Análisis de Mercado Avanzado
+        - 📊 Pareto, Sunburst, BoxPlot, Funnel  
         - 🖼️ Imágenes y links de Steam Store
         - ☁️ Inteligencia Artificial NLP
         - 🔒 Conexión segura a Supabase
@@ -777,13 +816,190 @@ with col4:
 
 st.markdown("---")
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "🏠 Resumen Ejecutivo",
     "📊 Análisis de Mercado",
     "🎛️ Simulador Estratégico",
     "🗄️ Explorador de Datos",
     "☁️ Inteligencia NLP",
     "🎮 Game Explorer"
 ])
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TAB 0: RESUMEN EJECUTIVO (POWER BI STYLE)
+# ═══════════════════════════════════════════════════════════════════════════
+
+with tab0:
+    st.markdown("## 🏠 Resumen Ejecutivo — Vista General del Mercado")
+    st.markdown("Panel de control de alto nivel con los indicadores clave de rendimiento y hallazgos automáticos generados por IA.")
+    
+    if df_filtered.empty:
+        st.warning("⚠️ No hay datos disponibles con los filtros actuales.")
+    else:
+        # --- 6 KPI CARDS ---
+        kpi1, kpi2, kpi3, kpi4, kpi5, kpi6 = st.columns(6)
+        
+        n_juegos_uniq = df_filtered['nombre'].nunique()
+        total_ventas_exec = df_filtered['monto_ventas_usd'].sum()
+        total_descargas_exec = df_filtered['cantidad_descargas'].sum()
+        avg_sat_exec = df_filtered['ratio_positividad'].mean()
+        ingreso_promedio = total_ventas_exec / n_juegos_uniq if n_juegos_uniq > 0 else 0
+        total_resenas = df_filtered['conteo_resenas'].sum()
+        ratio_dl_review = total_descargas_exec / total_resenas if total_resenas > 0 else 0
+        
+        with kpi1:
+            st.metric("💵 Ventas Totales", format_number(total_ventas_exec))
+        with kpi2:
+            st.metric("📥 Descargas", format_count(total_descargas_exec))
+        with kpi3:
+            st.metric("⭐ Satisfacción", f"{avg_sat_exec:.1%}")
+        with kpi4:
+            st.metric("🎯 Títulos", f"{n_juegos_uniq:,}")
+        with kpi5:
+            st.metric("💰 Ingreso/Juego", format_number(ingreso_promedio))
+        with kpi6:
+            st.metric("📊 Ratio DL/Reseña", f"{ratio_dl_review:.1f}x")
+        
+        st.markdown("---")
+        
+        # --- FILA: GAUGE DE SALUD + COMPOSICIÓN DE MERCADO + DISTRIBUCIÓN ---
+        col_exec_g, col_exec_comp, col_exec_dist = st.columns([1, 1, 1])
+        
+        with col_exec_g:
+            st.markdown("### 🌡️ Salud del Mercado")
+            gauge_exec = avg_sat_exec * 100 if not pd.isna(avg_sat_exec) else 0
+            if gauge_exec >= 80:
+                salud_label = "EXCELENTE"
+            elif gauge_exec >= 60:
+                salud_label = "ESTABLE"
+            elif gauge_exec >= 40:
+                salud_label = "EN RIESGO"
+            else:
+                salud_label = "CRÍTICO"
+            fig_g_exec = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=gauge_exec,
+                number={'suffix': '%', 'font': {'size': 36, 'color': '#e0f2fe', 'family': 'JetBrains Mono'}},
+                title={'text': salud_label, 'font': {'size': 14, 'color': '#00d4ff', 'family': 'Orbitron'}},
+                gauge={
+                    'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': '#00d4ff', 'dtick': 25},
+                    'bar': {'color': '#00d4ff', 'thickness': 0.3},
+                    'bgcolor': 'rgba(0,0,0,0.3)',
+                    'borderwidth': 2, 'bordercolor': 'rgba(0,212,255,0.3)',
+                    'steps': [
+                        {'range': [0, 40], 'color': 'rgba(255,45,120,0.15)'},
+                        {'range': [40, 60], 'color': 'rgba(255,183,0,0.1)'},
+                        {'range': [60, 80], 'color': 'rgba(0,212,255,0.08)'},
+                        {'range': [80, 100], 'color': 'rgba(0,255,136,0.1)'}
+                    ],
+                    'threshold': {'line': {'color': '#00ff88', 'width': 3}, 'thickness': 0.8, 'value': 75}
+                }
+            ))
+            fig_g_exec.update_layout(
+                paper_bgcolor='rgba(5,10,24,0.6)', font=dict(color='#c8d6e5', family='DM Sans'),
+                height=260, margin=dict(t=50, b=10, l=30, r=30)
+            )
+            st.plotly_chart(fig_g_exec, use_container_width=True)
+        
+        with col_exec_comp:
+            st.markdown("### 🥧 Composición del Mercado")
+            comp_data = df_filtered.groupby('subgenero')['monto_ventas_usd'].sum().reset_index()
+            comp_data = comp_data.sort_values('monto_ventas_usd', ascending=False).head(8)
+            fig_comp = px.pie(comp_data, values='monto_ventas_usd', names='subgenero', hole=0.55,
+                              template="plotly_dark",
+                              color_discrete_sequence=['#00d4ff','#b44aff','#00ff88','#ff2d78','#ffb700','#7dd3fc','#a78bfa','#34d399'])
+            fig_comp.update_layout(
+                paper_bgcolor='rgba(5,10,24,0.6)',
+                legend=dict(bgcolor='rgba(5,10,24,0.9)', bordercolor='rgba(0,212,255,0.2)', borderwidth=1, font=dict(size=10)),
+                margin=dict(t=10, b=10, l=10, r=10), height=260,
+                showlegend=True
+            )
+            fig_comp.update_traces(textposition='inside', textinfo='percent', hovertemplate="<b>%{label}</b><br>$%{value:,.0f}<br>%{percent}<extra></extra>")
+            st.plotly_chart(fig_comp, use_container_width=True)
+        
+        with col_exec_dist:
+            st.markdown("### 📊 Distribución de Ventas")
+            fig_hist_exec = px.histogram(
+                df_filtered, x='monto_ventas_usd', nbins=30,
+                template="plotly_dark",
+                labels={'monto_ventas_usd': 'Ventas (USD)', 'count': 'Frecuencia'},
+                color_discrete_sequence=['#00d4ff']
+            )
+            fig_hist_exec.update_layout(
+                paper_bgcolor='rgba(5,10,24,0.6)', plot_bgcolor='rgba(0,0,0,0.3)',
+                xaxis=dict(showgrid=True, gridcolor='rgba(0,212,255,0.08)', tickformat='$,.0s'),
+                yaxis=dict(showgrid=True, gridcolor='rgba(0,212,255,0.08)'),
+                height=260, margin=dict(t=10, b=30, l=30, r=10),
+                showlegend=False, bargap=0.1
+            )
+            st.plotly_chart(fig_hist_exec, use_container_width=True)
+        
+        st.markdown("---")
+        
+        # --- TOP 5 QUICK RANKING ---
+        col_rank, col_insights = st.columns([1.2, 1])
+        
+        with col_rank:
+            st.markdown("### 🏆 Ranking de Rendimiento — Top Juegos")
+            rank_df = df_filtered.groupby('nombre').agg({
+                'monto_ventas_usd': 'sum',
+                'cantidad_descargas': 'sum',
+                'ratio_positividad': 'mean',
+                'subgenero': 'first'
+            }).reset_index().sort_values('monto_ventas_usd', ascending=False).head(10)
+            
+            max_venta_rank = rank_df['monto_ventas_usd'].max() if len(rank_df) > 0 else 1
+            
+            rank_html = '<div style="background:rgba(5,10,24,0.8); border:1px solid rgba(0,212,255,0.15); border-radius:10px; padding:1rem; overflow:hidden;">'
+            rank_html += '<div style="display:grid; grid-template-columns:30px 1fr 120px 80px; gap:8px; padding:0.5rem 0.8rem; border-bottom:1px solid rgba(0,212,255,0.15); font-family:Orbitron,sans-serif; font-size:0.65rem; color:#00d4ff; text-transform:uppercase; letter-spacing:0.05em;">'
+            rank_html += '<span>#</span><span>Título</span><span>Ventas</span><span>Rating</span></div>'
+            
+            for i, (_, row) in enumerate(rank_df.iterrows()):
+                pct = (row['monto_ventas_usd'] / max_venta_rank * 100) if max_venta_rank > 0 else 0
+                rat = row['ratio_positividad']
+                if rat >= 0.85: rc = '#00ff88'
+                elif rat >= 0.70: rc = '#00d4ff'
+                elif rat >= 0.40: rc = '#ffb700'
+                else: rc = '#ff2d78'
+                nombre_r = str(row['nombre'])[:30]
+                rank_html += f'''<div style="display:grid; grid-template-columns:30px 1fr 120px 80px; gap:8px; padding:0.6rem 0.8rem; align-items:center; border-bottom:1px solid rgba(255,255,255,0.03); transition:background 0.2s;" onmouseover="this.style.background='rgba(0,212,255,0.05)'" onmouseout="this.style.background='transparent'">
+                    <span style="color:#64748b; font-weight:700; font-family:JetBrains Mono,monospace; font-size:0.8rem;">{i+1}</span>
+                    <span style="color:#e0f2fe; font-size:0.8rem; font-weight:600;">{nombre_r}</span>
+                    <div style="position:relative;">
+                        <div style="background:rgba(255,255,255,0.05); border-radius:4px; height:18px; overflow:hidden;">
+                            <div style="background:linear-gradient(90deg,#00d4ff,#b44aff); width:{pct:.0f}%; height:100%; border-radius:4px; box-shadow:0 0 8px rgba(0,212,255,0.3);"></div>
+                        </div>
+                        <span style="position:absolute; right:4px; top:0; font-size:0.65rem; color:#c8d6e5; font-family:JetBrains Mono,monospace; line-height:18px;">{format_number(row["monto_ventas_usd"])}</span>
+                    </div>
+                    <span style="color:{rc}; font-weight:700; font-size:0.75rem; font-family:JetBrains Mono,monospace;">{rat:.0%}</span>
+                </div>'''
+            rank_html += '</div>'
+            st.markdown(rank_html, unsafe_allow_html=True)
+        
+        with col_insights:
+            st.markdown("### 🧠 Insights Automáticos (IA)")
+            insights_list = generar_insights(df_filtered)
+            for idx, insight in enumerate(insights_list):
+                st.markdown(f"""
+                <div style="background:rgba(0,212,255,0.03); border-left:3px solid {'#00d4ff' if idx % 2 == 0 else '#b44aff'}; padding:0.8rem 1rem; margin-bottom:0.5rem; border-radius:0 8px 8px 0; transition:all 0.3s;" onmouseover="this.style.background='rgba(0,212,255,0.08)'" onmouseout="this.style.background='rgba(0,212,255,0.03)'">
+                    <p style="margin:0; font-size:0.85rem; color:#c8d6e5; line-height:1.5;">{insight}</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Recomendación estratégica
+            st.markdown("### 📋 Veredicto Estratégico")
+            if avg_sat_exec >= 0.80:
+                vered_color, vered_icon, vered_text = '#00ff88', '✅', 'ALTA VIABILIDAD — Mercado saludable. Inversión recomendada.'
+            elif avg_sat_exec >= 0.60:
+                vered_color, vered_icon, vered_text = '#ffb700', '⚠️', 'RIESGO MODERADO — Mercado competitivo. Precaución recomendada.'
+            else:
+                vered_color, vered_icon, vered_text = '#ff2d78', '🚨', 'ALTO RIESGO — Insatisfacción detectada. Análisis profundo requerido.'
+            st.markdown(f"""
+            <div style="background:rgba(5,10,24,0.9); border:1px solid {vered_color}; border-radius:10px; padding:1.2rem; text-align:center; box-shadow:0 0 20px {vered_color}22;">
+                <p style="margin:0; font-size:1.5rem;">{vered_icon}</p>
+                <p style="margin:0.3rem 0 0; color:{vered_color}; font-family:Orbitron,sans-serif; font-size:0.8rem; font-weight:700; letter-spacing:0.05em;">{vered_text}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TAB 1: ANÁLISIS DE MERCADO
