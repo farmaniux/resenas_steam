@@ -1,3 +1,5 @@
+# STM-9: Configurar repositorio GitHub resenas_steam con estructura base
+# Sprint 1 - Infraestructura y ETL | TecNM Ingeniería Informática
 streamlit
 pandas
 numpy
