@@ -1,3 +1,5 @@
+# STM-33: Pipeline ETL unificado - ejecutar_etl.bat Python + Pentaho
+# Sprint 6 - Unificacion y Migracion Cloud | TecNM Ingeniería Informática
 #!/usr/bin/env python
 # coding: utf-8
 # =============================================================================
