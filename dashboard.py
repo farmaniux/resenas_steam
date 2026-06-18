@@ -1,3 +1,5 @@
+# STM-36: Dashboard Streamlit con conexion Supabase - 4 pestanas implementadas
+# Sprint 7 - Visualizacion Dual BI | TecNM Ingeniería Informática
 import re  
 import requests
 import pandas as pd
